@@ -1,0 +1,48 @@
+---
+title: "Analysis of invasiveness with a single *S. pneumoniae* dataset"
+author: "Nicholas Croucher"
+date: 1/6/2021
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{run-invasiveness-analysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+The `progressionEstimation` package should first be loaded:
+
+```{r setup}
+library(progressionEstimation)
+require(tidyverse)
+require(magrittr)
+require(rstan)
+require(bridgesampling)
+require(loo)
+require(kableExtra)
+require(xlsx)
+```
+
+The data for analysis is contained within the spreadsheet `s_pneumoniae_netherlands.xlsx`. This is loaded as a data frame without using the `strain` column, which is empty, as only serotypes were ascertained in this study:
+
+```{r Read spreadsheet}
+
+s_pneumoniae_netherlands_df <- process_input_xlsx("s_pneumoniae_netherlands.xlsx", use_strain = FALSE)
+
+```
+
+The data frame is then converted to the correct format for analysis with the Bayesian models, using the default subtyping:
+
+```{r Process data frame}
+
+s_pneumoniae_netherlands_data <- process_input_data(s_pneumoniae_netherlands_df)
+
+```
+
+

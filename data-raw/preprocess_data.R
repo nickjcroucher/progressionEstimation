@@ -2,13 +2,13 @@ require(tidyverse)
 
 process_pneumo_df<-function(fn) {
   input_df <-
-    read.csv(fn) %<>%
+    read.csv(fn) %>%
       dplyr::select(DS, Serotype, carriage, disease, n.swab, N, time.int) %>%
-      dplyr::rename(study = as.factor(DS)) %>%
+      dplyr::mutate(study = factor(DS)) %>%
+      dplyr::mutate(categorisation = factor(Serotype)) %>%
       dplyr::rename(carriage_samples = n.swab) %>%
       dplyr::rename(surveillance_population = N) %>%
-      dplyr::rename(time_interval = time.int) %>%
-      dplyr::rename(categorisation = as.factor(Serotype))
+      dplyr::rename(time_interval = time.int)
   return(input_df)
 }
 

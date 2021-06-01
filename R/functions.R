@@ -26,14 +26,16 @@ process_input_xlsx <- function(fn = "progression_estimation_input.xlsx", use_str
       sheetIndex = 1,
       colIndex = 1:max_col_num,
       header = TRUE
-    )
+    ) %>%
+    dplyr::mutate(study = factor(study)) %>%
+    dplyr::mutate(categorisation = factor(categorisation))
   return(input_df)
 }
 
 #' Generate model input from input data frame
 #'
 #' @param input_df Data frame containing details of case-carrier studies
-#' @param var_name Name of column in input data frame used for subtyping information
+#' @param subtype Name of column in input data frame used for subtyping information
 #'
 #' @return A list of lists used as an input to stan models
 #' @export
@@ -42,7 +44,7 @@ process_input_xlsx <- function(fn = "progression_estimation_input.xlsx", use_str
 #' process_input_data(S_pneumoniae_infant_serotype, subtype = "categorisation")
 process_input_data <- function(input_df, subtype = "categorisation") {
   i_values <- as.integer(input_df$study)
-  j_values <- as.integer(input_df[, which(colnames(input_df) == var_name)])
+  j_values <- as.integer(input_df[, which(colnames(input_df) == subtype)])
   c_ij <- input_df$carriage
   d_ij <- input_df$disease
   n_i <- input_df$carriage_samples

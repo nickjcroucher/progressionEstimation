@@ -30,4 +30,3 @@
 #' }
 #' @source <https://github.com/nickjcroucher/progressionEstimation>
 "S_pneumoniae_adult_serotype"
-

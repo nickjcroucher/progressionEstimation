@@ -1,11 +1,26 @@
 Package: progressionEstimation
 Type: Package
-Title: What the Package Does (Title Case)
+Title: R package for the estimation of microbial progression rates 
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Author: person("Nicholas",
+               "Croucher",
+               email = "n.croucher@imperial.ac.uk",
+               role = c("aut", "cre"))
+Maintainer: person("Nicholas",
+               "Croucher",
+               email = "n.croucher@imperial.ac.uk",
+               role = c("aut", "cre"))
+Description: This package uses Bayesian models implemented in stan to estimate the rates at which microbes progress from carriage to disease using case and carrier data.
+License: GPL-3.0
 Encoding: UTF-8
 LazyData: true
+Depends: 
+    R (>= 3.1)
+Imports:
+    tidyverse
+    magrittr
+    rstan
+    bridgesampling
+    loo
+    kableExtra
+    xlsx

@@ -205,7 +205,7 @@ process_progression_rate_model_output<-function(input_df,
     dplyr::mutate(carriage_prediction_upper = qbinom(0.975, carriage_samples, rho)) %>%
     dplyr::mutate(disease_prediction = rho*nu*delta*surveillance_population*time_interval)
   # Calculate intervals for disease isolates
-  if (phi_nb %in% model_output@model_pars) {
+  if ("phi_nb" %in% model_output@model_pars) {
     phi = get_mean("phi_nb",model_output)
     updated_df %<>%
       dplyr::mutate(disease_prediction_lower = qnbinom(0.025, mu = disease_prediction, size = phi)) %>%

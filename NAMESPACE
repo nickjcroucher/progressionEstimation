@@ -2,3 +2,4 @@
 
 export(process_input_data)
 export(process_input_xlsx)
+import(Rcpp)import(methods)importFrom(rstan, sampling)useDynLib(progressionEstimation, .registration = TRUE)

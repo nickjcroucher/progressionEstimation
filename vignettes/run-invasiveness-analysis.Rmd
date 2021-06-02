@@ -14,6 +14,7 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
 )
+options(rmarkdown.html_vignette.check_title = FALSE)
 ```
 
 The `progressionEstimation` package should first be loaded:
@@ -33,7 +34,7 @@ The data for analysis is contained within the spreadsheet `s_pneumoniae_netherla
 
 ```{r Read spreadsheet}
 
-s_pneumoniae_netherlands_df <- process_input_xlsx("s_pneumoniae_netherlands.xlsx", use_strain = FALSE)
+s_pneumoniae_netherlands_df <- progressionEstimation::process_input_xlsx("s_pneumoniae_netherlands.xlsx", use_strain = FALSE)
 
 ```
 
@@ -41,8 +42,23 @@ The data frame is then converted to the correct format for analysis with the Bay
 
 ```{r Process data frame}
 
-s_pneumoniae_netherlands_data <- process_input_data(s_pneumoniae_netherlands_df)
+s_pneumoniae_netherlands_data <- progressionEstimation::process_input_data(s_pneumoniae_netherlands_df)
 
 ```
 
+We can then fit a model that assumes disease occurs as a Poisson process with a fixed progression rate per unit time (in this, with units of years), $\nu_{j}$, for each serotype $j$. Hence the expected number of disease isolates can be described by:
+$$d_{i,j} \sim Pois(\nu_{j}\rho_{i,j}N_{i}t_{i})$$
+Where:
+
+* $rho_{i,j}$ is the carriage prevalence in study $i$ (in this case, there is only one study)
+
+* $N_{i}$ is the size of the population under surveillance for disease in study $i$ (adjusted to account for demographic-specific sampling)
+
+* $t_{i}$ is the time interval over which disease surveillance was conducted
+
+```{r Fit Poisson model}
+
+s_pneumoniae_netherlands_data <- progressionEstimation::process_input_data(s_pneumoniae_netherlands_df)
+
+```
 

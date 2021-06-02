@@ -64,3 +64,19 @@ process_input_data <- function(input_df, subtype = "categorisation") {
   )
   return(progression_rate_data)
 }
+
+#' Fit a progression rate model to input data
+#'
+#' @param input_data
+#' @param model
+#' @param num_chains
+#' @param num_iter
+#' @param adapt_delta
+#'
+#' @return
+#' @export
+#'
+#' @examples
+fit_progression_rate_model<-function(input_data, model = "Poisson", num_chains = 4, num_iter = 1e4, adapt_delta = 0.8) {
+  return(input_data)
+}

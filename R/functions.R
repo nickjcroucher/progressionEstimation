@@ -156,7 +156,7 @@ process_progression_rate_model_output<-function(input_df,
                                                 strain_as_primary_type = FALSE,
                                                 strain_as_secondary_type = FALSE) {
   # Extract progression rate estimates and intervals
-  if (!use_strain) {
+  if (!strain_as_primary_type & !strain_as_secondary_type) {
     # Carriage prevalence estimates
     carriage_df <- data.frame(
       "rho" = get_mean("rho_ij",model_output),

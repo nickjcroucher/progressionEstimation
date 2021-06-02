@@ -125,3 +125,97 @@ fit_progression_rate_model<-function(input_data,
   # Return output
   return(model_output)
 }
+
+get_mean<-function(parameter,model) {
+  return(summary(model,pars=c(parameter))$summary[,1])
+}
+
+get_upper<-function(parameter,model) {
+  return(summary(model,pars=c(parameter))$summary[,8])
+}
+
+get_lower<-function(parameter,model) {
+  return(summary(model,pars=c(parameter))$summary[,4])
+}
+
+#' Process the model output for downstream analysis
+#'
+#' @param input_df Data frame used as input to model fitting
+#' @param model_output Stanfit object returned by model fitting
+#' @param subtype Name of column used to define subtypes
+#' @param strain_as_primary_type Whether strain was used as the primary determinant of progression rate, and the other subtype used as the secondary determinant
+#' @param strain_as_secondary_type Whether strain was used as the secondary determinant of progression rate, and the other subtype used as the primary determinant
+#'
+#' @return A data frame
+#' @export
+#'
+#' @examples
+process_progression_rate_model_output<-function(input_df,
+                                                model_output,
+                                                subtype = "categorisation",
+                                                strain_as_primary_type = FALSE,
+                                                strain_as_secondary_type = FALSE) {
+  # Extract progression rate estimates and intervals
+  if (!use_strain) {
+    # Carriage prevalence estimates
+    carriage_df <- data.frame(
+      "rho" = get_mean("rho_ij",model_output),
+      "rho_lower" = get_lower("rho_ij",model_output),
+      "rho_upper" = get_upper("rho_ij",model_output)
+    )
+    # Variation by type
+    nu_name = "nu"
+    if ("nu_j" %in% model_output@model_pars) {
+      nu_name = "nu_j"
+    }
+    subtype_parameters_df <- data.frame(
+      "type" = levels(input_df[[subtype]]),
+      "nu" = get_mean(nu_name,model_output),
+      "nu_lower" = get_lower(nu_name,model_output),
+      "nu_upper" = get_upper(nu_name,model_output)
+    )
+    # Variation by location
+    scale_parameter <- 1
+    if ("delta_i" %in% model_output@model_pars) {
+      location_parameters <- data.frame(
+        "study" = levels(input_df[["study"]]),
+        "delta" = get_mean("delta_i",model_output),
+        "delta_lower" = get_lower("delta_i",model_output),
+        "delta_upper" = get_upper("delta_i",model_output)
+      )
+    } else {
+      location_parameters <- data.frame(
+        "study" = levels(input_df[["study"]]),
+        "delta" = 1,
+        "delta_lower" = 1,
+        "delta_upper" = 1
+      )
+    }
+    # Join information together
+    updated_df <-
+      input_df %>%
+        dplyr::bind_cols(carriage_df) %>%
+        dplyr::left_join(subtype_parameters_df, by = setNames("type",subtype)) %>%
+        dplyr::left_join(location_parameters, by = c("study" = "study"))
+  }
+  # Extract predictions and intervals
+  updated_df %<>%
+    dplyr::mutate(carriage_prediction = rho*carriage_samples) %>%
+    dplyr::mutate(carriage_prediction_lower = qbinom(0.025, carriage_samples, rho)) %>%
+    dplyr::mutate(carriage_prediction_upper = qbinom(0.975, carriage_samples, rho)) %>%
+    dplyr::mutate(disease_prediction = rho*nu*delta*surveillance_population*time_interval)
+  # Calculate intervals for disease isolates
+  if (phi_nb %in% model_output@model_pars) {
+    phi = get_mean("phi_nb",model_output)
+    updated_df %<>%
+      dplyr::mutate(disease_prediction_lower = qnbinom(0.025, mu = disease_prediction, size = phi)) %>%
+      dplyr::mutate(disease_prediction_upper = qnbinom(0.975, mu = disease_prediction, size = phi))
+  } else {
+    updated_df %<>%
+      dplyr::mutate(disease_prediction_lower = qpois(0.025, disease_prediction)) %>%
+      dplyr::mutate(disease_prediction_upper = qpois(0.975, disease_prediction))
+  }
+  return(updated_df)
+}
+
+

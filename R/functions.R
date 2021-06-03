@@ -5,6 +5,8 @@ require(bridgesampling)
 require(loo)
 require(kableExtra)
 require(xlsx)
+require(cowplot)
+require(ggrepel)
 
 #' Generate data frame from input spreadsheet
 #'
@@ -95,8 +97,7 @@ fit_progression_rate_model<-function(input_data,
   # Validate input
   model_suffix = match.arg(stat_model, c("poisson","negbin"), several.ok = FALSE)
   if ((strain_as_primary_type | strain_as_secondary_type) & !("strain" %in% colnames(input_data))) {
-    message("If strain to be used in typing, then needs to be in input data")
-    quit(status = 1)
+    stop("If strain to be used in typing, then needs to be in input data")
   }
   # Select model based on specifications
   model_prefix = "null"
@@ -110,8 +111,7 @@ fit_progression_rate_model<-function(input_data,
   model_name = paste0(model_prefix,'_',model_suffix)
   # Validate model name
   if (!(model_name %in% names(stanmodels))) {
-    message(paste(model_name,"not in list of valid model names"))
-    quit(status = 1)
+    stop(paste(model_name,"not in list of valid model names"))
   }
   # Sample from model
   model_output<-
@@ -127,15 +127,15 @@ fit_progression_rate_model<-function(input_data,
 }
 
 get_mean<-function(parameter,model) {
-  return(summary(model,pars=c(parameter))$summary[,1])
+  return(rstan::summary(model,pars=c(parameter))$summary[,1])
 }
 
 get_upper<-function(parameter,model) {
-  return(summary(model,pars=c(parameter))$summary[,8])
+  return(rstan::summary(model,pars=c(parameter))$summary[,8])
 }
 
 get_lower<-function(parameter,model) {
-  return(summary(model,pars=c(parameter))$summary[,4])
+  return(rstan::summary(model,pars=c(parameter))$summary[,4])
 }
 
 #' Process the model output for downstream analysis
@@ -200,22 +200,160 @@ process_progression_rate_model_output<-function(input_df,
   }
   # Extract predictions and intervals
   updated_df %<>%
-    dplyr::mutate(carriage_prediction = rho*carriage_samples) %>%
-    dplyr::mutate(carriage_prediction_lower = qbinom(0.025, carriage_samples, rho)) %>%
-    dplyr::mutate(carriage_prediction_upper = qbinom(0.975, carriage_samples, rho)) %>%
-    dplyr::mutate(disease_prediction = rho*nu*delta*surveillance_population*time_interval)
-  # Calculate intervals for disease isolates
-  if ("phi_nb" %in% model_output@model_pars) {
-    phi = get_mean("phi_nb",model_output)
-    updated_df %<>%
-      dplyr::mutate(disease_prediction_lower = qnbinom(0.025, mu = disease_prediction, size = phi)) %>%
-      dplyr::mutate(disease_prediction_upper = qnbinom(0.975, mu = disease_prediction, size = phi))
-  } else {
-    updated_df %<>%
-      dplyr::mutate(disease_prediction_lower = qpois(0.025, disease_prediction)) %>%
-      dplyr::mutate(disease_prediction_upper = qpois(0.975, disease_prediction))
-  }
+    dplyr::mutate(carriage_prediction = get_mean("c_ij_pred",model_output)) %>%
+    dplyr::mutate(carriage_prediction_lower = get_lower("c_ij_pred",model_output)) %>%
+    dplyr::mutate(carriage_prediction_upper =  get_upper("c_ij_pred",model_output)) %>%
+    dplyr::mutate(disease_prediction = get_mean("d_ij_pred",model_output)) %>%
+    dplyr::mutate(disease_prediction_lower = get_lower("d_ij_pred",model_output)) %>%
+    dplyr::mutate(disease_prediction_upper =  get_upper("d_ij_pred",model_output))
   return(updated_df)
 }
 
 
+#' Function for plotting the observed and predicted case-carrier counts
+#'
+#' @param model_output_df Data frame include input data and model fit output
+#' @param n_label Number of top-ranked observations to label
+#'
+#' @return ggplot2 plot
+#' @export
+#'
+#' @examples
+plot_case_carrier_predictions <- function(model_output_df, n_label = 3) {
+  if (!("carriage_prediction" %in% colnames(model_output_df))) {
+    stop("Need to include model output in data frame for plotting")
+  }
+  carriage_labels <-
+    model_output_df %>%
+    dplyr::slice_max(carriage_prediction, n = n_label) %>%
+    dplyr::select(categorisation, carriage, carriage_prediction)
+
+  disease_labels <-
+    model_output_df %>%
+    dplyr::slice_max(disease_prediction, n = n_label) %>%
+    dplyr::select(categorisation, disease, disease_prediction)
+
+  carriage_plot <-
+    ggplot(model_output_df,
+           aes(x = carriage,
+               y = carriage_prediction,
+               ymin = carriage_prediction_lower,
+               ymax = carriage_prediction_upper)) +
+    geom_point(color = "blue") +
+    geom_errorbar(color = "blue", alpha = 0.75) +
+    geom_abline(slope = 1, intercept = 0, lty = 2, colour = "coral") +
+    ylab("Number of carriage isolates predicted by model") +
+    xlab("Number of observed carriage isolates") +
+    theme_bw() +
+    ggrepel::geom_text_repel(data = carriage_labels,
+                             aes(x = carriage,
+                                 y = carriage_prediction,
+                                 label = categorisation),
+                             alpha = 0.9,
+                             force = 50,
+                             inherit.aes = FALSE)
+
+  disease_plot <-
+    ggplot(model_output_df,
+           aes(x = disease,
+               y = disease_prediction,
+               ymin = disease_prediction_lower,
+               ymax = disease_prediction_upper)) +
+    geom_point(color = "blue") +
+    geom_errorbar(color = "blue", alpha = 0.75) +
+    geom_abline(slope = 1, intercept = 0, lty = 2, colour = "coral") +
+    ylab("Number of disease isolates predicted by model") +
+    xlab("Number of observed disease isolates") +
+    theme_bw() +
+    ggrepel::geom_text_repel(data = disease_labels,
+                             aes(x = disease,
+                                 y = disease_prediction,
+                                 label = categorisation),
+                             alpha = 0.9,
+                             force = 50,
+                             inherit.aes = FALSE)
+
+  cowplot::plot_grid(plotlist = list(carriage_plot, disease_plot))
+}
+
+
+#' Plot progression rate estimates
+#'
+#' @param model_output_df Data frame include input data and model fit output
+#' @param unit_time String specifying the time unit for the y axis label
+#' @param type_name Name of categorisation scheme for x axis label
+#'
+#' @return
+#' @export
+#'
+#' @examples
+plot_progression_rates <- function(model_output_df, unit_time = "unit time", type_name = "categorisation") {
+  if (!("carriage_prediction" %in% colnames(model_output_df))) {
+    stop("Need to include model output in data frame for plotting")
+  }
+  ggplot(model_output_df,
+         aes(x = categorisation, y = nu, ymin = nu_lower, ymax = nu_upper)) +
+    geom_point() +
+    geom_errorbar() +
+    ylab(paste0("Progression rate (disease per carrier per ",unit_time,")")) +
+    xlab(type_name) +
+    scale_y_continuous(trans ="log10") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+}
+
+#' Compare model fits using Bayes factors
+#'
+#' @param model_list List of stan fit objects
+#' @param num_iter Number of iterations used for bridghe sampling
+#'
+#' @return Data frame containing Bayes factors
+#' @export
+#'
+#' @examples
+compare_model_fits_with_bf <- function(model_list, num_iter = 1e3) {
+  model_names <- unlist(lapply(model_list, getElement, "model_name"))
+  model_lml <- lapply(model_list,
+                      bridgesampling::bridge_sampler,
+                      maxiter = num_iter,
+                      silent = TRUE)
+  model_lml_values <- -1*unlist(lapply(model_lml, getElement, "logml"))
+  lml_value_order <- order(model_lml_values)
+  model_lml <- model_lml[lml_value_order]
+  model_names <- model_names[lml_value_order]
+  bf_values <- c()
+  for (x in 1:length(model_names)) {
+    bf_values <- c(bf_values,
+                   bridgesampling::bf(model_lml[[x]], model_lml[[1]], log = TRUE)$bf
+    )
+  }
+  bf_df <- data.frame(
+    "Model" = model_names,
+    "Bayes_factor" = bf_values
+  )
+  return(bf_df)
+}
+
+
+run_loo_analysis <- function(model_fit) {
+  ll <- loo::extract_log_lik(model_fit, merge_chains = F)
+  r_eff <- loo::relative_eff(ll)
+  loo <- loo(ll, r_eff = r_eff, save_psis = TRUE)
+  return(loo)
+}
+
+#' Compare model fits using leave-one-out cross-validation
+#'
+#' @param model_list List of stan fit objects
+#'
+#' @return Data frame containing cross-validation values
+#' @export
+#'
+#' @examples
+compare_model_fits_with_loo <- function(model_list) {
+  model_loo <- lapply(model_list, run_loo_analysis)
+  loo_comparisons <- loo::loo_compare(model_loo)
+  model_names <- unlist(lapply(model_list, getElement, "model_name"))
+  rownames(loo_comparisons) <- model_names[order(rownames(loo_comparisons))]
+  return(loo_comparisons)
+}

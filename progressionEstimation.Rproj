@@ -18,4 +18,5 @@ StripTrailingWhitespace: Yes
 BuildType: Package
 PackageUseDevtools: Yes
 PackageInstallArgs: --no-multiarch --with-keep.source
+PackageBuildBinaryArgs: CXXFLAGS="$CXXFLAGS -Wno-unused-local-typedef -Wno-unused-variable" CFLAGS="$CFLAGS -Wno-unused-local-typedef -Wno-unused-variable"
 PackageRoxygenize: rd,collate,namespace,vignette

@@ -16,7 +16,6 @@ require(ggrepel)
 #' @return Data frame containing data extracted from spreadsheet
 #' @export
 #'
-#' @examples
 process_input_xlsx <- function(fn = "progression_estimation_input.xlsx", use_strain = FALSE) {
   max_col_num <- 7
   if (use_strain) {
@@ -42,8 +41,6 @@ process_input_xlsx <- function(fn = "progression_estimation_input.xlsx", use_str
 #' @return A list of lists used as an input to stan models
 #' @export
 #'
-#' @examples
-#' process_input_data(S_pneumoniae_infant_serotype, subtype = "categorisation")
 process_input_data <- function(input_df, subtype = "categorisation") {
   i_values <- as.integer(input_df$study)
   j_values <- as.integer(input_df[, which(colnames(input_df) == subtype)])
@@ -83,7 +80,6 @@ process_input_data <- function(input_df, subtype = "categorisation") {
 #' @return A stanfit object
 #' @export
 #'
-#' @examples
 fit_progression_rate_model<-function(input_data,
                                      type_specific = TRUE,
                                      location_adjustment = TRUE,
@@ -149,7 +145,6 @@ get_lower<-function(parameter,model) {
 #' @return A data frame
 #' @export
 #'
-#' @examples
 process_progression_rate_model_output<-function(input_df,
                                                 model_output,
                                                 subtype = "categorisation",
@@ -218,7 +213,6 @@ process_progression_rate_model_output<-function(input_df,
 #' @return ggplot2 plot
 #' @export
 #'
-#' @examples
 plot_case_carrier_predictions <- function(model_output_df, n_label = 3) {
   if (!("carriage_prediction" %in% colnames(model_output_df))) {
     stop("Need to include model output in data frame for plotting")
@@ -239,8 +233,6 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3) {
                y = carriage_prediction,
                ymin = carriage_prediction_lower,
                ymax = carriage_prediction_upper)) +
-    geom_point(color = "blue") +
-    geom_errorbar(color = "blue", alpha = 0.75) +
     geom_abline(slope = 1, intercept = 0, lty = 2, colour = "coral") +
     ylab("Number of carriage isolates predicted by model") +
     xlab("Number of observed carriage isolates") +
@@ -259,8 +251,6 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3) {
                y = disease_prediction,
                ymin = disease_prediction_lower,
                ymax = disease_prediction_upper)) +
-    geom_point(color = "blue") +
-    geom_errorbar(color = "blue", alpha = 0.75) +
     geom_abline(slope = 1, intercept = 0, lty = 2, colour = "coral") +
     ylab("Number of disease isolates predicted by model") +
     xlab("Number of observed disease isolates") +
@@ -272,6 +262,24 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3) {
                              alpha = 0.9,
                              force = 50,
                              inherit.aes = FALSE)
+  # Add in function for colouring by location if appropriat
+  if (model_output_df$study %>% dplyr::n_distinct() > 1) {
+    carriage_plot <- carriage_plot +
+      geom_point(aes(color = study)) +
+      geom_errorbar(aes(color = study), alpha = 0.75) +
+      theme(legend.position = "bottom")
+    disease_plot <- disease_plot +
+      geom_point(aes(color = study)) +
+      geom_errorbar(aes(color = study), alpha = 0.75) +
+      theme(legend.position = "bottom")
+  } else {
+    carriage_plot <- carriage_plot +
+      geom_point(color = "blue") +
+      geom_errorbar(color = "blue", alpha = 0.75)
+    disease_plot <- disease_plot +
+      geom_point(color = "blue") +
+      geom_errorbar(color = "blue", alpha = 0.75)
+  }
 
   cowplot::plot_grid(plotlist = list(carriage_plot, disease_plot))
 }
@@ -286,7 +294,6 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3) {
 #' @return
 #' @export
 #'
-#' @examples
 plot_progression_rates <- function(model_output_df, unit_time = "unit time", type_name = "categorisation") {
   if (!("carriage_prediction" %in% colnames(model_output_df))) {
     stop("Need to include model output in data frame for plotting")
@@ -310,7 +317,6 @@ plot_progression_rates <- function(model_output_df, unit_time = "unit time", typ
 #' @return Data frame containing Bayes factors
 #' @export
 #'
-#' @examples
 compare_model_fits_with_bf <- function(model_list, num_iter = 1e3) {
   model_names <- unlist(lapply(model_list, getElement, "model_name"))
   model_lml <- lapply(model_list,
@@ -329,7 +335,7 @@ compare_model_fits_with_bf <- function(model_list, num_iter = 1e3) {
   }
   bf_df <- data.frame(
     "Model" = model_names,
-    "Bayes_factor" = bf_values
+    "log_Bayes_factor" = bf_values
   )
   return(bf_df)
 }
@@ -349,11 +355,52 @@ run_loo_analysis <- function(model_fit) {
 #' @return Data frame containing cross-validation values
 #' @export
 #'
-#' @examples
 compare_model_fits_with_loo <- function(model_list) {
   model_loo <- lapply(model_list, run_loo_analysis)
   loo_comparisons <- loo::loo_compare(model_loo)
   model_names <- unlist(lapply(model_list, getElement, "model_name"))
   rownames(loo_comparisons) <- model_names[order(rownames(loo_comparisons))]
   return(loo_comparisons)
+}
+
+#' Combine input data frames for meta-analyses
+#'
+#' @param new_df Data frame with new studies
+#' @param old_df Data frame with old studies
+#'
+#' @return Combined data frame
+#' @export
+#'
+combine_with_existing_datasets <- function(new_df, old_df) {
+  new_studies <-
+    new_df %>% dplyr::select(study) %>% dplyr::distinct() %>% dplyr::pull()
+  old_studies <-
+    old_df %>% dplyr::select(study) %>% dplyr::distinct() %>% dplyr::pull()
+  if (new_studies %in% old_studies) {
+    stop("Names of studies in new data must not be present in old studies")
+  }
+  combined_df <- dplyr::bind_rows(old_df, new_df)
+  return(combined_df)
+}
+
+#' Plot study scale factors
+#'
+#' @param model_output_df Data frame include input data and model fit output
+#'
+#' @return ggplot2 object
+#' @export
+#'
+plot_study_scale_factors <- function(model_output_df) {
+  if (!("carriage_prediction" %in% colnames(model_output_df))) {
+    stop("Need to include model output in data frame for plotting")
+  }
+  ggplot(model_output_df,
+         aes(x = study, y = delta, ymin = delta_lower, ymax = delta_upper)) +
+    geom_point() +
+    geom_errorbar() +
+    ylab(paste0("Study scale factor")) +
+    xlab("Study") +
+    scale_y_continuous(trans = "log10") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 }

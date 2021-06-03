@@ -1,0 +1,201 @@
+---
+title: "Meta-analysis of invasiveness across multiple *S. pneumoniae* datasets"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{run-progression-rate-meta-analysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  fig.width = 8,
+  comment = "#>"
+)
+options(rmarkdown.html_vignette.check_title = FALSE)
+```
+
+```{r setup}
+# Load dependencies
+require(tidyverse)
+require(magrittr)
+require(rstan)
+require(bridgesampling)
+require(loo)
+require(bayesplot)
+require(cowplot)
+require(ggrepel)
+require(xlsx)
+
+# Load stan package
+library(progressionEstimation)
+pkgbuild::compile_dll()
+roxygen2::roxygenize(package.dir = "..")
+```
+
+## Processing input data
+
+The new data for analysis is contained within the spreadsheet `s_pneumoniae_netherlands.xlsx`. This is loaded as a data frame without using the `strain` column, which is empty, as only serotypes were ascertained in this study:
+
+```{r Read spreadsheet}
+
+s_pneumoniae_netherlands_df <-
+  progressionEstimation::process_input_xlsx("s_pneumoniae_netherlands.xlsx",
+                                            use_strain = FALSE)
+
+```
+
+These data are from carriage and disease in infants, categorised by serotype, and therefore these can be combined with the data frame of analogous datasets included in the package, named `S_pneumoniae_infant_serotype`:
+
+```{r Combine with existing data}
+
+updated_s_pneumoniae_infant_df <- 
+  progressionEstimation::combine_with_existing_datasets(s_pneumoniae_netherlands_df,
+                                                        S_pneumoniae_infant_serotype)
+
+```
+
+The combined data can then be convered to the corred input format for model fitting:
+
+``` {r Process input data}
+
+updated_s_pneumoniae_infant_data <- progressionEstimation::process_input_data(updated_s_pneumoniae_infant_df)
+
+```
+
+## Fitting a model with study-specific factors
+
+A model in which both bacterial type and location affect progression rates can then be fitted. Hence the expected number of disease isolates can be described by:
+$$d_{i,j} \sim Pois(\delta_{i}\nu_{j}\rho_{i,j}N_{i}t_{i})$$
+Where:
+
+* $\delta_{i}$ is the scale factor for study $i$
+
+* $\rho_{i,j}$ is the carriage prevalence of type $j$ in study $i$
+
+* $N_{i}$ is the size of the population under surveillance for disease in study $i$ (adjusted to account for demographic-specific sampling)
+
+* $t_{i}$ is the time interval over which disease surveillance was conducted
+
+``` {r Fit location and type-specific progression rates}
+
+s_pneumoniae_study_scale_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(updated_s_pneumoniae_infant_data,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    num_chains = 2,
+                                                    num_iter = 1e4)
+
+```
+
+The two MCMCs can then be combined to check for convergence:
+
+``` {r Estimate r hat}
+
+plot(s_pneumoniae_study_scale_poisson_fit, plotfun = "rhat")
+
+```
+
+As all the parameters appear to have been robustly estimated, the model output can be combined with the input data:
+
+``` {r Process Poisson model output}
+
+updated_s_pneumoniae_study_specific_model_output_df <-
+  progressionEstimation::process_progression_rate_model_output(updated_s_pneumoniae_infant_df,
+                                                               s_pneumoniae_study_scale_poisson_fit)
+
+```
+
+## Plotting the results
+
+First we can compare the observed and predicted counts of isolates from carriage and disease, to check that the model is producing sensible outputs:
+
+``` {r Compare observed and predicted counts with Poisson model}
+
+progressionEstimation::plot_case_carrier_predictions(updated_s_pneumoniae_study_specific_model_output_df,
+                                                     n_label = 3)
+
+```
+
+In these plots, the points are coloured according to the location from which the data originated. This can allow any systematic problems with a particular dataset to be identified. In this case, the predicted and observed counts match well, indicating a reasonable model fit. We can then plot the estimated progression rates across types:
+
+``` {r Plot progression rate estimates}
+
+progressionEstimation::plot_progression_rates(updated_s_pneumoniae_study_specific_model_output_df,
+                                              unit_time = "year",
+                                              type_name = "Serotype")
+
+```
+
+We can also plot the study scale factors:
+
+``` {r Plot study scale factor estimates}
+
+progressionEstimation::plot_study_scale_factors(updated_s_pneumoniae_study_specific_model_output_df)
+
+```
+
+The first scale factor is always fixed at one; the other scale factors are estimated relative to this value. All the progression rate estimates are therefore relative to this first scale factor, and should be adjusted by the displayed scale factors when applied to other studies.
+
+## Fitting an alternative model
+
+We can compare the fits of different models to the same dataset, to identify the model structure that best describes the observations. For comparison, we can fit a model without the study-specific scale factors, to test whether they are justified:
+
+```{r Fit null model}
+
+s_pneumoniae_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(updated_s_pneumoniae_infant_data,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = FALSE,
+                                                    num_chains = 2,
+                                                    num_iter = 1e4)
+```
+
+Once fitted, this model output can be appended to the original data frame:
+
+``` {r Process null model output}
+
+updated_s_pneumoniae_model_output_df <-
+  progressionEstimation::process_progression_rate_model_output(updated_s_pneumoniae_infant_df,
+                                                               s_pneumoniae_poisson_fit)
+
+```
+
+The observed and predicted counts for carriage and disease samples can then be compared:
+
+``` {r Compare observed and predicted counts with null model}
+
+progressionEstimation::plot_case_carrier_predictions(updated_s_pneumoniae_model_output_df,
+                                                     n_label = 3)
+
+```
+
+In this case, there are many predictions that deviate substantially from the observed counts, in contrast to the fit from the model including study-specific scale factors.
+
+## Comparing with an alternative model
+
+The first comparison we run is with LOO-CV using the `loo` package:
+
+``` {r Compare models with LOO-CV}
+
+progressionEstimation::compare_model_fits_with_loo(list(s_pneumoniae_poisson_fit,
+                                 s_pneumoniae_study_scale_poisson_fit)) %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+```
+
+In this table, each row is a different model, ordered from the best-fitting at the top, to the worst-fitting at the bottom. This is based on the expected log pointwise predictive density (ELPD) for each model. The difference between  models is calculated in the *elpd_diff* column; negative values indicate worse fits. The standard error of the ELPD values across a model is given by the *se_diff* column; all of these values are relative to the best-fitting model. One model can be regarded as outperforming another when *elpd_diff* is greater than four, and larger than the corresponding *se_diff*. Here we can conclude that best-fitting model is that with type-specific progression rates; that is, there are significant differences in progression rates between serotypes.
+
+An alternative approach to comparing models is to use Bayes factors. A practical consideration is that LOO-CV uses likelihoods, and is therefore not directly affected by prior distributions. However, Bayes factors are calculated using marginal likelihoods, which involve [directly sampling from the prior](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5699790/). With stan models, Bayes factors can be calculated with the `bridgesampling` package. This can be run: 
+
+``` {r Compare models with Bayes factors}
+
+progressionEstimation::compare_model_fits_with_bf(list(s_pneumoniae_poisson_fit,
+                                 s_pneumoniae_study_scale_poisson_fit)) %>%
+  dplyr::rename(`log(Bayes factor)` = log_Bayes_factor) %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+```

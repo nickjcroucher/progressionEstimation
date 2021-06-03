@@ -1,0 +1,210 @@
+---
+title: "Analysis of invasiveness with a single *S. pneumoniae* dataset"
+author: "Nicholas Croucher"
+date: 1/6/2021
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{run-progression-rate-analysis}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  fig.width = 8,
+  comment = "#>"
+)
+options(rmarkdown.html_vignette.check_title = FALSE)
+```
+
+The `progressionEstimation` package should first be loaded:
+
+```{r setup, message = FALSE, warnings = FALSE}
+# Load dependencies
+require(tidyverse)
+require(magrittr)
+require(rstan)
+require(bridgesampling)
+require(loo)
+require(bayesplot)
+require(cowplot)
+require(ggrepel)
+require(xlsx)
+
+# Load stan package
+library(progressionEstimation)
+pkgbuild::compile_dll()
+roxygen2::roxygenize(package.dir = "..")
+# extra commands needed due to https://freesoft.dev/program/91498603; https://mran.microsoft.com/snapshot/2020-05-03/web/packages/rstantools/vignettes/minimal-rstan-package.html
+```
+
+## Processing input data
+
+The data for analysis is contained within the spreadsheet `s_pneumoniae_netherlands.xlsx`. This is loaded as a data frame without using the `strain` column, which is empty, as only serotypes were ascertained in this study:
+
+```{r Read spreadsheet}
+
+s_pneumoniae_netherlands_df <- progressionEstimation::process_input_xlsx("s_pneumoniae_netherlands.xlsx",
+                                                                         use_strain = FALSE)
+
+```
+
+The data frame is then converted to the correct format for analysis with the Bayesian models, using the default subtyping:
+
+```{r Process data frame}
+
+s_pneumoniae_netherlands_data <- progressionEstimation::process_input_data(s_pneumoniae_netherlands_df)
+
+```
+
+## Fitting the model
+
+We can then fit a model that assumes disease occurs as a Poisson process with a fixed progression rate per unit time (in this, with units of years), $\nu_{j}$, for each serotype $j$. Hence the expected number of disease isolates can be described by:
+$$d_{i,j} \sim Pois(\nu_{j}\rho_{i,j}N_{i}t_{i})$$
+Where:
+
+* $\rho_{i,j}$ is the carriage prevalence of type $j$ in study $i$ (in this case, there is only one study)
+
+* $N_{i}$ is the size of the population under surveillance for disease in study $i$ (adjusted to account for demographic-specific sampling)
+
+* $t_{i}$ is the time interval over which disease surveillance was conducted
+
+As there is only one study in the dataset, we do not estimate any scaling factors (`location_adjustment = FALSE`).
+
+```{r Fit Poisson model}
+
+s_pneumoniae_netherlands_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(s_pneumoniae_netherlands_data,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = FALSE,
+                                                    num_chains = 2,
+                                                    num_iter = 1e4)
+
+```
+
+We can now check whether the MCMC converged in the specified number of iterations. To do this, we specify the parameter of interest; the parameters returned by each model are slightly different, and the list can be accessed through:
+
+``` {r Access parameter names}
+
+s_pneumoniae_netherlands_poisson_fit@model_pars
+
+```
+
+The parametr `nu_j` refers to the progression rate estimates for each serotype $j$ ($\nu_{j}$, in the notation above). We can assess the convergence between the two MCMCs run above for these progression rates:
+
+``` {r Check for MCMC convergence}
+
+rstan::traceplot(s_pneumoniae_netherlands_poisson_fit,
+                 pars = "nu_j")
+
+```
+
+Both MCMCs have converged on similar values, which suggests we have identified genuine variation between serotypes. This can be formally tested using `bayesplot`, which estimates $\hat{R}$ values across MCMCs:
+
+``` {r Estimate r hat}
+
+s_pneumoniae_netherlands_poisson_fit %>%
+    bayesplot::rhat() %>%
+    bayesplot::mcmc_rhat() +
+    bayesplot::yaxis_text()
+
+```
+
+All the parameters are estimated with $\hat{R}$ below the generally accepted threshold of 1.05 (in fact, they all line up along the 1.00 line), which confirms convergence of the parameter estimates. We can now combine the results of the model fit with the original data to enable the MCMCs outputs to be interpreted.
+
+``` {r Process Poisson model output}
+
+s_pneumoniae_netherlands_poisson_model_output_df <-
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_netherlands_df,
+                                                               s_pneumoniae_netherlands_poisson_fit)
+
+```
+
+## Plotting the results
+
+First we can compare the observed and predicted counts of isolates from carriage and disease, to check that the model is producing sensible outputs:
+
+``` {r Compare observed and predicted counts with Poisson model}
+
+progressionEstimation::plot_case_carrier_predictions(s_pneumoniae_netherlands_poisson_model_output_df,
+                                                     n_label = 3)
+
+```
+
+The predicted and observed counts match well, indicating a reasonable model fit. We can then plot the estimated progression rates across types:
+
+``` {r Plot progression rate estimates}
+
+progressionEstimation::plot_progression_rates(s_pneumoniae_netherlands_poisson_model_output_df,
+                                              unit_time = "year",
+                                              type_name = "Serotype")
+
+```
+
+## Fitting an alternative model
+
+We can compare the fits of different models to the same dataset, to identify the model structure that best describes the observations. For comparison, we fit a null model, in which there is no variation in progression rates between serotypes (i.e., one population-wide progression rate):
+
+```{r Fit null model}
+
+s_pneumoniae_netherlands_null_fit <- 
+  progressionEstimation::fit_progression_rate_model(s_pneumoniae_netherlands_data,
+                                                    type_specific = FALSE,
+                                                    location_adjustment = FALSE,
+                                                    num_chains = 2,
+                                                    num_iter = 1e4)
+
+```
+
+Once fitted, this model output can be appended to the original data frame:
+
+``` {r Process null model output}
+
+s_pneumoniae_netherlands_null_model_output_df <-
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_netherlands_df,
+                                                               s_pneumoniae_netherlands_null_fit)
+
+```
+
+The observed and predicted counts for carriage and disease samples can then be compared:
+
+``` {r Compare observed and predicted counts with null model}
+
+progressionEstimation::plot_case_carrier_predictions(s_pneumoniae_netherlands_null_model_output_df,
+                                                     n_label = 3)
+
+```
+
+In this case, as there is a single progression rate across types, and the number of disease isolates exactly correlates with the number of carriage isolates. Hence the model cannot reproduce the observations as accurately as the more complex type-specific model. However, it is always possible to improve the fit of a model through adding extra complexity; this can result in overfitting (reproducing noise in the data, rather than the informative signal). Model comparisons can be used to identify the simplest model that can explain the observed data well. Two approaches that can be easily used with these models are **leave-one-one cross-validation** (LOO-CV) and **Bayes factors**.
+
+## Comparing with an alternative model
+
+The first comparison we run is with LOO-CV using the `loo` package. The method is described [here](http://mc-stan.org/rstanarm/reference/loo.stanreg.html) and the interpretation of the comparison outputs are described [here](https://avehtari.github.io/modelselection/CV-FAQ.html).
+
+``` {r Compare models with LOO-CV}
+
+progressionEstimation::compare_model_fits_with_loo(list(s_pneumoniae_netherlands_null_fit,
+                                 s_pneumoniae_netherlands_poisson_fit)) %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+```
+
+In this table, each row is a different model, ordered from the best-fitting at the top, to the worst-fitting at the bottom. This is based on the expected log pointwise predictive density (ELPD) for each model. The difference between  models is calculated in the *elpd_diff* column; negative values indicate worse fits. The standard error of the ELPD values across a model is given by the *se_diff* column; all of these values are relative to the best-fitting model. One model can be regarded as outperforming another when *elpd_diff* is greater than four, and larger than the corresponding *se_diff*. Here we can conclude that best-fitting model is that with type-specific progression rates; that is, there are significant differences in progression rates between serotypes.
+
+An alternative approach to comparing models is to use Bayes factors. A practical consideration is that LOO-CV uses likelihoods, and is therefore not directly affected by prior distributions. However, Bayes factors are calculated using marginal likelihoods, which involve [directly sampling from the prior](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5699790/). With stan models, Bayes factors can be calculated with the `bridgesampling` package. This can be run: 
+
+``` {r Compare models with Bayes factors}
+
+progressionEstimation::compare_model_fits_with_bf(list(s_pneumoniae_netherlands_null_fit,
+                                 s_pneumoniae_netherlands_poisson_fit)) %>%
+  dplyr::rename(`log(Bayes factor)` = log_Bayes_factor) %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+```
+
+The output table lists the models in order, with best-fitting at the top, and worst-fitting at the bottom. In each row, the logarithm of the Bayes factor compares the decribed model to the top-ranking model. This comparison again concludes that the best-fitting model is that with type-specific progression rates.
+
+This is the main workflow for analysing a single dataset; the progression rate estimates from the best-fitting model can then be output and used for downstream analyses.

@@ -28,20 +28,68 @@ process_input_xlsx <- function(fn = "progression_estimation_input.xlsx", use_str
       colIndex = 1:max_col_num,
       header = TRUE
     ) %>%
-    dplyr::mutate(study = factor(study)) %>%
-    dplyr::mutate(categorisation = factor(categorisation))
+    tidyr::drop_na() %>%
+    dplyr::mutate(study = factor(str_trim(study))) %>%
+    dplyr::mutate(categorisation = factor(str_trim(categorisation, side = "both"))) %>%
+    dplyr::mutate(carriage = as.numeric(str_trim(carriage, side = "both"))) %>%
+    dplyr::mutate(disease = as.numeric(str_trim(disease, side = "both"))) %>%
+    dplyr::mutate(carriage_samples = as.numeric(str_trim(carriage_samples, side = "both"))) %>%
+    dplyr::mutate(surveillance_population = as.numeric(str_trim(surveillance_population, side = "both"))) %>%
+    dplyr::mutate(time_interval = as.numeric(str_trim(time_interval, side = "both")))
+  if (use_strain) {
+    input_df %<>%
+      dplyr::mutate(strain = factor(str_trim(strain, side = "both")))
+  }
   return(input_df)
+}
+
+combine_rows <- function(df, col_name = "categorisation") {
+  df %<>%
+    dplyr::group_by(study,!!! dplyr::syms(col_name)) %>%
+      dplyr::mutate(carriage = sum(carriage)) %>%
+      dplyr::mutate(disease = sum(disease)) %>%
+      dplyr::ungroup() %>%
+      dplyr::distinct()
+  return(df)
 }
 
 #' Generate model input from input data frame
 #'
 #' @param input_df Data frame containing details of case-carrier studies
 #' @param subtype Name of column in input data frame used for subtyping information
+#' @param use_strain Boolean specifying whether strain information should be used in addition to subtype information
+#' @param combine_strain Boolean specifying whether strain information should be combined with subtype information
 #'
 #' @return A list of lists used as an input to stan models
 #' @export
 #'
-process_input_data <- function(input_df, subtype = "categorisation") {
+process_input_data <- function(input_df, subtype = "categorisation", use_strain = FALSE, combine_strain = FALSE) {
+  if (!(subtype %in% colnames(input_df))) {
+    stop("Subtype column not in input data")
+  }
+  # Process input data
+  if (combine_strain | use_strain) {
+    input_df %<>%
+      tidyr::unite("combined",!!subtype,strain, sep='_', remove = FALSE) %>%
+      dplyr::mutate(combined = factor(combined))
+    input_df <- combine_rows(input_df, col_name = "combined")
+    if (combine_strain) {
+      subtype = "combined"
+    } else if (use_strain) {
+      input_df %<>% dplyr::select(-combined)
+    }
+  } else {
+    input_df <- combine_rows(input_df %>% dplyr::select(study,
+                                                        !!subtype,
+                                                        carriage,
+                                                        disease,
+                                                        carriage_samples,
+                                                        surveillance_population,
+                                                        time_interval),
+                             col_name = subtype)
+  }
+  # Calculate input
+  input_df <- as.data.frame(input_df)
   i_values <- as.integer(input_df$study)
   j_values <- as.integer(input_df[, which(colnames(input_df) == subtype)])
   c_ij <- input_df$carriage
@@ -49,18 +97,36 @@ process_input_data <- function(input_df, subtype = "categorisation") {
   n_i <- input_df$carriage_samples
   N_i <- input_df$surveillance_population
   t_i <- input_df$time_interval
-  progression_rate_data <- list(
-    i_max = max(i_values),
-    j_max = max(j_values),
-    n_obs = length(c_ij),
-    i_values = i_values,
-    j_values = j_values,
-    c_ij = c_ij,
-    d_ij = d_ij,
-    n_i = n_i,
-    N_i = N_i,
-    t_i = t_i
-  )
+  if (use_strain) {
+    k_values <- as.integer(input_df$strain)
+    progression_rate_data <- list(
+      i_max = max(i_values),
+      j_max = max(j_values),
+      k_max = max(k_values),
+      n_obs = length(c_ij),
+      i_values = i_values,
+      j_values = j_values,
+      k_values = k_values,
+      c_ij = c_ij,
+      d_ij = d_ij,
+      n_i = n_i,
+      N_i = N_i,
+      t_i = t_i
+    )
+  } else {
+    progression_rate_data <- list(
+      i_max = max(i_values),
+      j_max = max(j_values),
+      n_obs = length(c_ij),
+      i_values = i_values,
+      j_values = j_values,
+      c_ij = c_ij,
+      d_ij = d_ij,
+      n_i = n_i,
+      N_i = N_i,
+      t_i = t_i
+    )
+  }
   return(progression_rate_data)
 }
 
@@ -92,8 +158,11 @@ fit_progression_rate_model<-function(input_data,
                                      adapt_delta_value = 0.8) {
   # Validate input
   model_suffix = match.arg(stat_model, c("poisson","negbin"), several.ok = FALSE)
-  if ((strain_as_primary_type | strain_as_secondary_type) & !("strain" %in% colnames(input_data))) {
+  if ((strain_as_primary_type | strain_as_secondary_type) & !("k_max" %in% names(s_pneumoniae_sweden_by_serotype_and_strain_data))) {
     stop("If strain to be used in typing, then needs to be in input data")
+  }
+  if (strain_as_primary_type & strain_as_secondary_type) {
+    stop("Strain can only be primary type or seconday type, not both")
   }
   # Select model based on specifications
   model_prefix = "null"
@@ -104,6 +173,13 @@ fit_progression_rate_model<-function(input_data,
   } else if (!(type_specific) & location_adjustment) {
     model_prefix = "adjusted_null"
   }
+  # Adjust names if modifying serotype by strain
+  if (strain_as_primary_type & type_specific) {
+    model_prefix = paste0(model_prefix,"_strain_modified_by_subtype")
+  } else if (strain_as_secondary_type & type_specific) {
+    model_prefix = paste0(model_prefix,"_subtype_modified_by_strain")
+  }
+  # Complete model name
   model_name = paste0(model_prefix,'_',model_suffix)
   # Validate model name
   if (!(model_name %in% names(stanmodels))) {
@@ -141,6 +217,7 @@ get_lower<-function(parameter,model) {
 #' @param subtype Name of column used to define subtypes
 #' @param strain_as_primary_type Whether strain was used as the primary determinant of progression rate, and the other subtype used as the secondary determinant
 #' @param strain_as_secondary_type Whether strain was used as the secondary determinant of progression rate, and the other subtype used as the primary determinant
+#' @param combined_strain_subtype Whether strain and subtype were jointly used to subdivide the population
 #'
 #' @return A data frame
 #' @export
@@ -149,61 +226,111 @@ process_progression_rate_model_output<-function(input_df,
                                                 model_output,
                                                 subtype = "categorisation",
                                                 strain_as_primary_type = FALSE,
-                                                strain_as_secondary_type = FALSE) {
-  # Extract progression rate estimates and intervals
-  if (!strain_as_primary_type & !strain_as_secondary_type) {
-    # Carriage prevalence estimates
-    carriage_df <- data.frame(
-      "rho" = get_mean("rho_ij",model_output),
-      "rho_lower" = get_lower("rho_ij",model_output),
-      "rho_upper" = get_upper("rho_ij",model_output)
-    )
-    # Variation by type
-    nu_name = "nu"
-    if ("nu_j" %in% model_output@model_pars) {
-      nu_name = "nu_j"
+                                                strain_as_secondary_type = FALSE,
+                                                combined_strain_subtype = FALSE) {
+  # Process input data
+  if (strain_as_primary_type | strain_as_secondary_type | combined_strain_subtype) {
+    input_df %<>%
+      tidyr::unite("combined",!!subtype,strain, sep='_', remove = FALSE) %>%
+      dplyr::mutate(combined = factor(combined))
+    if (combined_strain_subtype) {
+      subtype = "combined"
     }
-    subtype_parameters_df <- data.frame(
-      "type" = levels(input_df[[subtype]]),
-      "nu" = get_mean(nu_name,model_output),
-      "nu_lower" = get_lower(nu_name,model_output),
-      "nu_upper" = get_upper(nu_name,model_output)
+    input_df %<>%
+      dplyr::select(study,
+                    !!subtype,
+                    carriage,
+                    disease,
+                    carriage_samples,
+                    surveillance_population,
+                    time_interval,
+                    strain)
+  }
+  # Remove unused rows
+  if (strain_as_primary_type | strain_as_secondary_type) {
+    input_df <- combine_rows(input_df %>%
+                               dplyr::select(study,
+                                             !!subtype,
+                                             carriage,
+                                             disease,
+                                             carriage_samples,
+                                             surveillance_population,
+                                             time_interval,
+                                             strain)) %>%
+      dplyr::distinct()
+  } else {
+    input_df <- combine_rows(input_df %>%
+                               dplyr::select(study,
+                                             !!subtype,
+                                             carriage,
+                                             disease,
+                                             carriage_samples,
+                                             surveillance_population,
+                                             time_interval),
+                             col_name = subtype)
+  }
+  # Extract factor levels
+  i_levels = levels(input_df %>% dplyr::pull(study))
+  j_levels = levels(input_df %>% dplyr::pull(!!subtype))
+  if (strain_as_primary_type | strain_as_secondary_type) {
+    k_levels = levels(input_df %>% dplyr::pull(strain))
+  }
+  # Carriage prevalence estimates
+  carriage_df <- data.frame(
+    "rho" = get_mean("rho_ij",model_output),
+    "rho_lower" = get_lower("rho_ij",model_output),
+    "rho_upper" = get_upper("rho_ij",model_output)
+  )
+  input_df %<>% dplyr::bind_cols(carriage_df)
+  # Variation by location
+  scale_parameter <- 1
+  if ("delta_i" %in% model_output@model_pars) {
+    location_parameters <- data.frame(
+      "study" = i_levels,
+      "delta" = get_mean("delta_i",model_output),
+      "delta_lower" = get_lower("delta_i",model_output),
+      "delta_upper" = get_upper("delta_i",model_output)
     )
-    # Variation by location
-    scale_parameter <- 1
-    if ("delta_i" %in% model_output@model_pars) {
-      location_parameters <- data.frame(
-        "study" = levels(input_df[["study"]]),
-        "delta" = get_mean("delta_i",model_output),
-        "delta_lower" = get_lower("delta_i",model_output),
-        "delta_upper" = get_upper("delta_i",model_output)
-      )
-    } else {
-      location_parameters <- data.frame(
-        "study" = levels(input_df[["study"]]),
-        "delta" = 1,
-        "delta_lower" = 1,
-        "delta_upper" = 1
-      )
-    }
-    # Join information together
-    updated_df <-
-      input_df %>%
-        dplyr::bind_cols(carriage_df) %>%
-        dplyr::left_join(subtype_parameters_df, by = setNames("type",subtype)) %>%
-        dplyr::left_join(location_parameters, by = c("study" = "study"))
+  } else {
+    location_parameters <- data.frame(
+      "study" = i_levels,
+      "delta" = 1,
+      "delta_lower" = 1,
+      "delta_upper" = 1
+    )
+  }
+  input_df %<>% dplyr::left_join(location_parameters, by = c("study"="study"))
+  # Calculate invasiveness values
+  nu_name = "nu"
+  if ("nu_j" %in% model_output@model_pars) {
+    nu_name = "nu_j"
+  }
+  progression_rates_df <- data.frame(
+    "type" = j_levels,
+    "nu" = get_mean(nu_name,model_output),
+    "nu_lower" = get_lower(nu_name,model_output),
+    "nu_upper" = get_upper(nu_name,model_output)
+  )
+  input_df %<>% dplyr::left_join(progression_rates_df, by = setNames("type",subtype))
+  if ("nu_k" %in% model_output@model_pars) {
+    secondary_progression_rates_df <- data.frame(
+      "type" = k_levels,
+      "secondary_nu" = get_mean("nu_k",model_output),
+      "secondary_nu_lower" = get_lower("nu_k",model_output),
+      "secondary_nu_upper" = get_upper("nu_k",model_output)
+    )
+    input_df %<>% dplyr::left_join(secondary_progression_rates_df, by = setNames("type","strain"))
   }
   # Extract predictions and intervals
-  updated_df %<>%
+  input_df %<>%
     dplyr::mutate(carriage_prediction = get_mean("c_ij_pred",model_output)) %>%
     dplyr::mutate(carriage_prediction_lower = get_lower("c_ij_pred",model_output)) %>%
     dplyr::mutate(carriage_prediction_upper =  get_upper("c_ij_pred",model_output)) %>%
     dplyr::mutate(disease_prediction = get_mean("d_ij_pred",model_output)) %>%
     dplyr::mutate(disease_prediction_lower = get_lower("d_ij_pred",model_output)) %>%
     dplyr::mutate(disease_prediction_upper =  get_upper("d_ij_pred",model_output))
-  return(updated_df)
+  return(input_df)
 }
-
 
 #' Function for plotting the observed and predicted case-carrier counts
 #'
@@ -288,18 +415,19 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3) {
 #' Plot progression rate estimates
 #'
 #' @param model_output_df Data frame include input data and model fit output
+#' @param subtype Name of column to be used on x axis
 #' @param unit_time String specifying the time unit for the y axis label
 #' @param type_name Name of categorisation scheme for x axis label
 #'
 #' @return
 #' @export
 #'
-plot_progression_rates <- function(model_output_df, unit_time = "unit time", type_name = "categorisation") {
+plot_progression_rates <- function(model_output_df, subtype = "categorisation", unit_time = "unit time", type_name = "categorisation") {
   if (!("carriage_prediction" %in% colnames(model_output_df))) {
     stop("Need to include model output in data frame for plotting")
   }
   ggplot(model_output_df,
-         aes(x = categorisation, y = nu, ymin = nu_lower, ymax = nu_upper)) +
+         aes(x = get(subtype), y = nu, ymin = nu_lower, ymax = nu_upper)) +
     geom_point() +
     geom_errorbar() +
     ylab(paste0("Progression rate (disease per carrier per ",unit_time,")")) +

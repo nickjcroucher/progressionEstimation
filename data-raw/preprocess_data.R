@@ -19,3 +19,4 @@ S_pneumoniae_adult_serotype <- process_pneumo_df("data-raw/S_pneumoniae_adult_se
 # Save the cleaned data in the required R package location
 usethis::use_data(S_pneumoniae_infant_serotype, overwrite = TRUE)
 usethis::use_data(S_pneumoniae_adult_serotype, overwrite = TRUE)
+

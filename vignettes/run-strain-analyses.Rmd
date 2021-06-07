@@ -56,19 +56,26 @@ The strain data can be loaded in four ways:
 
 # Load data by serotype
 s_pneumoniae_sweden_by_serotype_data <-
-  progressionEstimation::process_input_data(s_pneumoniae_strains_df)
+  progressionEstimation::process_input_data(s_pneumoniae_strains_df,
+                                            condense = FALSE)
 
 # Load data by strain
 s_pneumoniae_sweden_by_strain_data <-
-  progressionEstimation::process_input_data(s_pneumoniae_strains_df, subtype = "strain")
+  progressionEstimation::process_input_data(s_pneumoniae_strains_df,
+                                            subtype = "strain",
+                                            condense = FALSE)
 
 # Load data by strain and serotype
 s_pneumoniae_sweden_by_serotype_and_strain_data <-
-  progressionEstimation::process_input_data(s_pneumoniae_strains_df, use_strain = TRUE)
+  progressionEstimation::process_input_data(s_pneumoniae_strains_df,
+                                            use_strain = TRUE,
+                                            condense = FALSE)
 
 # Load data combining strain and serotype
 s_pneumoniae_sweden_combine_serotype_and_strain_data <-
-  progressionEstimation::process_input_data(s_pneumoniae_strains_df, combine_strain = TRUE)
+  progressionEstimation::process_input_data(s_pneumoniae_strains_df,
+                                            combine_strain = TRUE,
+                                            condense = FALSE)
 
 ```
 
@@ -99,7 +106,8 @@ s_pneumoniae_sweden_by_serotype_fit <-
 
 s_pneumoniae_sweden_serotype_output_df <-
   progressionEstimation::process_progression_rate_model_output(s_pneumoniae_strains_df,
-                                                               s_pneumoniae_sweden_by_serotype_fit)
+                                                               s_pneumoniae_sweden_by_serotype_fit,
+                                                               condense = FALSE)
 
 ```
 
@@ -133,6 +141,8 @@ s_pneumoniae_sweden_by_serotype_then_strain_fit <-
                                                     num_chains = 2,
                                                     num_iter = 1e4)
 
+s_pneumoniae_sweden_by_serotype_then_strain_fit@model_name <- "serotype_then_strain_type_specific_poisson"
+
 s_pneumoniae_sweden_by_serotype_then_strain_output_df <-
   progressionEstimation::process_progression_rate_model_output(s_pneumoniae_strains_df,
                                                             s_pneumoniae_sweden_by_serotype_then_strain_fit,
@@ -151,6 +161,8 @@ s_pneumoniae_sweden_by_strain_then_serotype_fit <-
                                                     num_chains = 2,
                                                     num_iter = 1e4)
 
+s_pneumoniae_sweden_by_strain_then_serotype_fit@model_name <- "strain_then_serotype_type_specific_poisson"
+
 s_pneumoniae_sweden_by_strain_then_serotype_output_df <-
   progressionEstimation::process_progression_rate_model_output(s_pneumoniae_strains_df,
                                                             s_pneumoniae_sweden_by_strain_then_serotype_fit,
@@ -160,7 +172,7 @@ s_pneumoniae_sweden_by_strain_then_serotype_output_df <-
 
 The final model fit uses the combined type, defined by the serotype and strain, as a single subtype classification:
 
-```{r Fit Poisson model to serotype and strain data 2}
+```{r Fit Poisson model to serotype and strain data 3}
 
 s_pneumoniae_sweden_combined_strain_serotype_fit <- 
   progressionEstimation::fit_progression_rate_model(s_pneumoniae_sweden_combine_serotype_and_strain_data,
@@ -168,6 +180,8 @@ s_pneumoniae_sweden_combined_strain_serotype_fit <-
                                                     location_adjustment = FALSE,
                                                     num_chains = 2,
                                                     num_iter = 1e4)
+
+s_pneumoniae_sweden_combined_strain_serotype_fit@model_name <- "combined_serotype_and_strain_type_specific_poisson"
 
 s_pneumoniae_sweden_combined_strain_serotype_output_df <-
   progressionEstimation::process_progression_rate_model_output(s_pneumoniae_strains_df,
@@ -180,15 +194,56 @@ s_pneumoniae_sweden_combined_strain_serotype_output_df <-
 
 We can then plot the estimated progression rates when the population was divided by serotype only:
 
-``` {r Plot progression rate estimates for serotypes combinations}
+``` {r Plot progression rate estimates for serotypes}
 
-progressionEstimation::plot_progression_rates(s_pneumoniae_sweden_ser,
-                                              subtype = "combined",
+progressionEstimation::plot_progression_rates(s_pneumoniae_sweden_serotype_output_df,
                                               unit_time = "year",
-                                              type_name = "Serotype_strain combination")
+                                              type_name = "Serotypes")
 
 ```
 
+``` {r Plot progression rate estimates for strains}
+
+progressionEstimation::plot_progression_rates(s_pneumoniae_sweden_strain_output_df,
+                                              subtype = "strain",
+                                              unit_time = "year",
+                                              type_name = "Strain")
+
+```
+
+``` {r Plot progression rate estimates for serotype modified by strain - plotted by serotype}
+
+progressionEstimation::plot_progression_rates(s_pneumoniae_sweden_by_serotype_then_strain_output_df,
+                                              unit_time = "year",
+                                              type_name = "Serotype")
+
+```
+
+``` {r Plot progression rate estimates for serotype modified by strain - plotted by strain}
+
+progressionEstimation::plot_progression_rates(s_pneumoniae_sweden_by_serotype_then_strain_output_df,
+                                              subtype = "strain",
+                                              unit_time = "year",
+                                              type_name = "Strain")
+
+```
+
+``` {r Plot progression rate estimates for strain modified by serotype - plotted by strain}
+
+progressionEstimation::plot_progression_rates(s_pneumoniae_sweden_by_strain_then_serotype_output_df,
+                                              subtype = "strain",
+                                              unit_time = "year",
+                                              type_name = "Strain")
+
+```
+
+``` {r Plot progression rate estimates for strain modified by serotype - plotted by serotype}
+
+progressionEstimation::plot_progression_rates(s_pneumoniae_sweden_by_strain_then_serotype_output_df,
+                                              unit_time = "year",
+                                              type_name = "Serotype")
+
+```
 
 ``` {r Plot progression rate estimates for serotype_strain combinations}
 
@@ -199,3 +254,16 @@ progressionEstimation::plot_progression_rates(s_pneumoniae_sweden_combined_strai
 
 ```
 
+## Run model comparisons
+
+``` {r Compare models with LOO-CV}
+
+progressionEstimation::compare_model_fits_with_loo(list(s_pneumoniae_sweden_by_serotype_fit,
+                                                        s_pneumoniae_sweden_by_strain_fit,
+                                                        s_pneumoniae_sweden_by_strain_then_serotype_fit,
+                                 s_pneumoniae_sweden_by_serotype_then_strain_fit,
+                                 s_pneumoniae_sweden_combined_strain_serotype_fit)) %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+```

@@ -23,7 +23,6 @@ require(magrittr)
 require(rstan)
 require(bridgesampling)
 require(loo)
-require(bayesplot)
 require(cowplot)
 require(ggrepel)
 require(xlsx)
@@ -85,11 +84,11 @@ s_pneumoniae_study_scale_poisson_fit <-
                                                     type_specific = TRUE,
                                                     location_adjustment = TRUE,
                                                     num_chains = 2,
-                                                    num_iter = 1e4)
+                                                    num_iter = 5e3)
 
 ```
 
-The two MCMCs can then be combined to check for convergence:
+The two MCMCs can then be combined to check for convergence through calculating the $\hat{R}$ statistic:
 
 ``` {r Estimate r hat}
 
@@ -97,7 +96,7 @@ plot(s_pneumoniae_study_scale_poisson_fit, plotfun = "rhat")
 
 ```
 
-As all the parameters appear to have been robustly estimated, the model output can be combined with the input data:
+As all the parameters appear to have been robustly estimated ($\hat{R}$ < 1.05), the model output can be combined with the input data:
 
 ``` {r Process Poisson model output}
 
@@ -149,7 +148,7 @@ s_pneumoniae_poisson_fit <-
                                                     type_specific = TRUE,
                                                     location_adjustment = FALSE,
                                                     num_chains = 2,
-                                                    num_iter = 1e4)
+                                                    num_iter = 5e3)
 ```
 
 Once fitted, this model output can be appended to the original data frame:

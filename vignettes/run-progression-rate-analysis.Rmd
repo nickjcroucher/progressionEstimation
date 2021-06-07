@@ -27,7 +27,6 @@ require(magrittr)
 require(rstan)
 require(bridgesampling)
 require(loo)
-require(bayesplot)
 require(cowplot)
 require(ggrepel)
 require(xlsx)
@@ -100,18 +99,15 @@ rstan::traceplot(s_pneumoniae_netherlands_poisson_fit,
 
 ```
 
-Both MCMCs have converged on similar values, which suggests we have identified genuine variation between serotypes. This can be formally tested using `bayesplot`, which estimates $\hat{R}$ values across MCMCs:
+Both MCMCs have converged on similar values, which suggests we have identified genuine variation between serotypes. This can be formally tested by estimating $\hat{R}$ values across MCMCs:
 
 ``` {r Estimate r hat}
 
-s_pneumoniae_netherlands_poisson_fit %>%
-    bayesplot::rhat() %>%
-    bayesplot::mcmc_rhat() +
-    bayesplot::yaxis_text()
+plot(s_pneumoniae_netherlands_poisson_fit, plotfun = "rhat")
 
 ```
 
-All the parameters are estimated with $\hat{R}$ below the generally accepted threshold of 1.05 (in fact, they all line up along the 1.00 line), which confirms convergence of the parameter estimates. We can now combine the results of the model fit with the original data to enable the MCMCs outputs to be interpreted.
+All the parameters are estimated with $\hat{R}$ below the generally accepted threshold of 1.05 (in fact, they all have values close to 1.00, which is ideal), which confirms convergence of the parameter estimates. We can now combine the results of the model fit with the original data to enable the MCMCs outputs to be interpreted.
 
 ``` {r Process Poisson model output}
 

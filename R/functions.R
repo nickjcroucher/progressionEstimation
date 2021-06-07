@@ -141,6 +141,7 @@ process_input_data <- function(input_df, subtype = "categorisation", use_strain 
 #' @param stat_model Whether progression to disease is "poisson" (Poisson process) or "negbin" (overdispersed negative binomial distribution)
 #' @param strain_as_primary_type Whether strain should be used as the primary determinant of progression rate, and the other subtype used as the secondary determinant
 #' @param strain_as_secondary_type Whether strain should be used as the secondary determinant of progression rate, and the other subtype used as the primary determinant
+#' @param model_description Descriptive title of model
 #' @param num_chains Number of MCMCs to be run for inference
 #' @param num_iter Length of MCMCs
 #' @param num_cores Number of threads used to calculate MCMCs
@@ -155,6 +156,7 @@ fit_progression_rate_model<-function(input_data,
                                      stat_model = "poisson",
                                      strain_as_primary_type = FALSE,
                                      strain_as_secondary_type = FALSE,
+                                     model_description = NULL,
                                      num_chains = 4,
                                      num_iter = 1e4,
                                      num_cores = 1,
@@ -197,6 +199,10 @@ fit_progression_rate_model<-function(input_data,
                     chains = num_chains,
                     control = list(adapt_delta = adapt_delta_value)
     )
+  # Rename if specified
+  if (!(is.null(model_description))) {
+    model_output@model_name <- model_description
+  }
   # Return output
   return(model_output)
 }
@@ -439,9 +445,15 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
     progression_rate_values <- paste0("secondary_", progression_rate_values)
   }
 
+  y_label_text = paste0("Progression rate (disease per carrier per ",unit_time,")")
+  if ("secondary_nu" %in% colnames(model_output_df)) {
+    y_label_text = paste0("Progression rate contribution (disease per carrier per ",unit_time,")")
+  }
+
   model_output_df %<>%
-    dplyr::group_by(!!subtype) %>%
-    dplyr::top_n(n = 1)
+    dplyr::group_by(!!! dplyr::syms(subtype)) %>%
+    dplyr::slice_head(n=1) %>%
+    dplyr::ungroup()
 
   ggplot(model_output_df,
          aes(x = get(subtype),
@@ -450,7 +462,7 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
              ymax = get(progression_rate_values[3]))) +
     geom_point() +
     geom_errorbar() +
-    ylab(paste0("Progression rate (disease per carrier per ",unit_time,")")) +
+    ylab(y_label_text) +
     xlab(type_name) +
     scale_y_continuous(trans ="log10") +
     theme_bw() +
@@ -465,11 +477,12 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
 #' @return Data frame containing Bayes factors
 #' @export
 #'
-compare_model_fits_with_bf <- function(model_list, num_iter = 1e3) {
+compare_model_fits_with_bf <- function(model_list, num_iter = 1e3, num_threads = 1) {
   model_names <- unlist(lapply(model_list, getElement, "model_name"))
   model_lml <- lapply(model_list,
                       bridgesampling::bridge_sampler,
                       maxiter = num_iter,
+                      cores = num_threads,
                       silent = TRUE)
   model_lml_values <- -1*unlist(lapply(model_lml, getElement, "logml"))
   lml_value_order <- order(model_lml_values)
@@ -489,10 +502,13 @@ compare_model_fits_with_bf <- function(model_list, num_iter = 1e3) {
 }
 
 
-run_loo_analysis <- function(model_fit) {
+run_loo_analysis <- function(model_fit, num_threads = 1) {
   ll <- loo::extract_log_lik(model_fit, merge_chains = F)
-  r_eff <- loo::relative_eff(ll)
-  loo <- loo(ll, r_eff = r_eff, save_psis = TRUE)
+  r_eff <- loo::relative_eff(ll, cores = num_threads)
+  loo <- loo(ll,
+             r_eff = r_eff,
+             cores = num_threads,
+             save_psis = TRUE)
   return(loo)
 }
 
@@ -503,8 +519,8 @@ run_loo_analysis <- function(model_fit) {
 #' @return Data frame containing cross-validation values
 #' @export
 #'
-compare_model_fits_with_loo <- function(model_list) {
-  model_loo <- lapply(model_list, run_loo_analysis)
+compare_model_fits_with_loo <- function(model_list, num_threads = 1) {
+  model_loo <- lapply(model_list, run_loo_analysis, num_threads = num_threads)
   loo_comparisons <- loo::loo_compare(model_loo)
   model_names <- unlist(lapply(model_list, getElement, "model_name"))
   rownames(loo_comparisons) <- model_names[order(rownames(loo_comparisons))]
@@ -542,6 +558,12 @@ plot_study_scale_factors <- function(model_output_df) {
   if (!("carriage_prediction" %in% colnames(model_output_df))) {
     stop("Need to include model output in data frame for plotting")
   }
+
+  model_output_df %<>%
+    dplyr::group_by(!!! dplyr::syms(subtype)) %>%
+    dplyr::slice_head(n=1) %>%
+    dplyr::ungroup()
+
   ggplot(model_output_df,
          aes(x = study, y = delta, ymin = delta_lower, ymax = delta_upper)) +
     geom_point() +

@@ -35,7 +35,8 @@ Imports:
     xlsx (>= 0.6.5)
 Suggests: 
     knitr,
-    rmarkdown
+    rmarkdown,
+    metafor (>= 3.0)
 VignetteBuilder: knitr
 RoxygenNote: 7.1.1
 Biarch: true

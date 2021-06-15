@@ -444,7 +444,6 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
   if (subtype == "strain" & "secondary_nu" %in% colnames(model_output_df)) {
     progression_rate_values <- paste0("secondary_", progression_rate_values)
   }
-
   y_label_text = paste0("Progression rate (disease per carrier per ",unit_time,")")
   if ("secondary_nu" %in% colnames(model_output_df)) {
     y_label_text = paste0("Progression rate contribution (disease per carrier per ",unit_time,")")
@@ -549,7 +548,7 @@ combine_with_existing_datasets <- function(new_df, old_df) {
 
 #' Plot study scale factors
 #'
-#' @param model_output_df Data frame include input data and model fit output
+#' @param model_output_df Data frame including input data and model fit output
 #'
 #' @return ggplot2 object
 #' @export
@@ -560,7 +559,7 @@ plot_study_scale_factors <- function(model_output_df) {
   }
 
   model_output_df %<>%
-    dplyr::group_by(!!! dplyr::syms(subtype)) %>%
+    dplyr::group_by(study) %>%
     dplyr::slice_head(n=1) %>%
     dplyr::ungroup()
 
@@ -573,4 +572,30 @@ plot_study_scale_factors <- function(model_output_df) {
     scale_y_continuous(trans = "log10") +
     theme_bw() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+}
+
+#' Validate input dataset for progrsssion estimation
+#'
+#' @param df Input dataframe containing case and carrier data
+#'
+#' @return Nothing
+#' @export
+#'
+validate_progression_estimation_dataset <- function(df) {
+  # Check column names
+  if (!all(c("study","carriage","disease","carriage_samples","surveillance_population","time_interval") %in% colnames(df))) {
+    stop('Columns required in dataset: "study","carriage","disease","carriage_samples","surveillance_population","time_interval"')
+  }
+  # Check consistency of statistics
+  filtered_df <-
+    df %>%
+    dplyr::select(study,carriage_samples,surveillance_population,time_interval) %>%
+    dplyr::distinct()
+  n_distinct_values <- NULL
+  for (var in c("study","carriage_samples","surveillance_population","time_interval")) {
+    n_distinct_values <- c(n_distinct_values, filtered_df %>% dplyr::select(!!var) %>% dplyr::n_distinct())
+  }
+  if (max(n_distinct_values %>% dplyr::n_distinct()) > n_distinct_values[1]) {
+    stop("Each study have a unique name associated with consistent carriage sample, surveillance population and time interval values")
+  }
 }

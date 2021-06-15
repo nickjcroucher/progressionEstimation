@@ -40,11 +40,11 @@ roxygen2::roxygenize(package.dir = "..")
 
 ## Processing input data
 
-The data for analysis is contained within the spreadsheet `s_pneumoniae_netherlands.xlsx`. This is loaded as a data frame without using the `strain` column, which is empty, as only serotypes were ascertained in this study:
+The data for analysis is contained within the spreadsheet `s_pneumoniae_sweden.xlsx`. This is loaded as a data frame without using the `strain` column, which is empty, as only serotypes were ascertained in this study:
 
 ```{r Read spreadsheet}
 
-s_pneumoniae_netherlands_df <- progressionEstimation::process_input_xlsx("s_pneumoniae_netherlands.xlsx",
+s_pneumoniae_sweden_df <- progressionEstimation::process_input_xlsx("s_pneumoniae_sweden.xlsx",
                                                                          use_strain = FALSE)
 
 ```
@@ -53,7 +53,7 @@ The data frame is then converted to the correct format for analysis with the Bay
 
 ```{r Process data frame}
 
-s_pneumoniae_netherlands_data <- progressionEstimation::process_input_data(s_pneumoniae_netherlands_df)
+s_pneumoniae_sweden_data <- progressionEstimation::process_input_data(s_pneumoniae_sweden_df)
 
 ```
 
@@ -73,8 +73,8 @@ As there is only one study in the dataset, we do not estimate any scaling factor
 
 ```{r Fit Poisson model}
 
-s_pneumoniae_netherlands_poisson_fit <- 
-  progressionEstimation::fit_progression_rate_model(s_pneumoniae_netherlands_data,
+s_pneumoniae_sweden_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(s_pneumoniae_sweden_data,
                                                     type_specific = TRUE,
                                                     location_adjustment = FALSE,
                                                     num_chains = 2,
@@ -86,15 +86,15 @@ We can now check whether the MCMC converged in the specified number of iteration
 
 ``` {r Access parameter names}
 
-s_pneumoniae_netherlands_poisson_fit@model_pars
+s_pneumoniae_sweden_poisson_fit@model_pars
 
 ```
 
 The parametr `nu_j` refers to the progression rate estimates for each serotype $j$ ($\nu_{j}$, in the notation above). We can assess the convergence between the two MCMCs run above for these progression rates:
 
-``` {r Check for MCMC convergence}
+``` {r Check for MCMC convergence, fig.height = 10}
 
-rstan::traceplot(s_pneumoniae_netherlands_poisson_fit,
+rstan::traceplot(s_pneumoniae_sweden_poisson_fit,
                  pars = "nu_j")
 
 ```
@@ -103,7 +103,7 @@ Both MCMCs have converged on similar values, which suggests we have identified g
 
 ``` {r Estimate r hat}
 
-plot(s_pneumoniae_netherlands_poisson_fit, plotfun = "rhat")
+plot(s_pneumoniae_sweden_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
 
 ```
 
@@ -111,9 +111,9 @@ All the parameters are estimated with $\hat{R}$ below the generally accepted thr
 
 ``` {r Process Poisson model output}
 
-s_pneumoniae_netherlands_poisson_model_output_df <-
-  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_netherlands_df,
-                                                               s_pneumoniae_netherlands_poisson_fit)
+s_pneumoniae_sweden_poisson_model_output_df <-
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_sweden_df,
+                                                               s_pneumoniae_sweden_poisson_fit)
 
 ```
 
@@ -123,7 +123,7 @@ First we can compare the observed and predicted counts of isolates from carriage
 
 ``` {r Compare observed and predicted counts with Poisson model}
 
-progressionEstimation::plot_case_carrier_predictions(s_pneumoniae_netherlands_poisson_model_output_df,
+progressionEstimation::plot_case_carrier_predictions(s_pneumoniae_sweden_poisson_model_output_df,
                                                      n_label = 3)
 
 ```
@@ -132,7 +132,7 @@ The predicted and observed counts match well, indicating a reasonable model fit.
 
 ``` {r Plot progression rate estimates}
 
-progressionEstimation::plot_progression_rates(s_pneumoniae_netherlands_poisson_model_output_df,
+progressionEstimation::plot_progression_rates(s_pneumoniae_sweden_poisson_model_output_df,
                                               unit_time = "year",
                                               type_name = "Serotype")
 
@@ -144,8 +144,8 @@ We can compare the fits of different models to the same dataset, to identify the
 
 ```{r Fit null model}
 
-s_pneumoniae_netherlands_null_fit <- 
-  progressionEstimation::fit_progression_rate_model(s_pneumoniae_netherlands_data,
+s_pneumoniae_sweden_null_fit <- 
+  progressionEstimation::fit_progression_rate_model(s_pneumoniae_sweden_data,
                                                     type_specific = FALSE,
                                                     location_adjustment = FALSE,
                                                     num_chains = 2,
@@ -157,9 +157,9 @@ Once fitted, this model output can be appended to the original data frame:
 
 ``` {r Process null model output}
 
-s_pneumoniae_netherlands_null_model_output_df <-
-  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_netherlands_df,
-                                                               s_pneumoniae_netherlands_null_fit)
+s_pneumoniae_sweden_null_model_output_df <-
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_sweden_df,
+                                                               s_pneumoniae_sweden_null_fit)
 
 ```
 
@@ -167,7 +167,7 @@ The observed and predicted counts for carriage and disease samples can then be c
 
 ``` {r Compare observed and predicted counts with null model}
 
-progressionEstimation::plot_case_carrier_predictions(s_pneumoniae_netherlands_null_model_output_df,
+progressionEstimation::plot_case_carrier_predictions(s_pneumoniae_sweden_null_model_output_df,
                                                      n_label = 3)
 
 ```
@@ -180,8 +180,8 @@ The first comparison we run is with LOO-CV using the `loo` package. The method i
 
 ``` {r Compare models with LOO-CV}
 
-progressionEstimation::compare_model_fits_with_loo(list(s_pneumoniae_netherlands_null_fit,
-                                 s_pneumoniae_netherlands_poisson_fit)) %>%
+progressionEstimation::compare_model_fits_with_loo(list(s_pneumoniae_sweden_null_fit,
+                                 s_pneumoniae_sweden_poisson_fit)) %>%
   kableExtra::kable()  %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
@@ -193,8 +193,8 @@ An alternative approach to comparing models is to use Bayes factors. A practical
 
 ``` {r Compare models with Bayes factors}
 
-progressionEstimation::compare_model_fits_with_bf(list(s_pneumoniae_netherlands_null_fit,
-                                 s_pneumoniae_netherlands_poisson_fit)) %>%
+progressionEstimation::compare_model_fits_with_bf(list(s_pneumoniae_sweden_null_fit,
+                                 s_pneumoniae_sweden_poisson_fit)) %>%
   dplyr::rename(`log(Bayes factor)` = log_Bayes_factor) %>%
   kableExtra::kable()  %>%
   kableExtra::kable_styling(latex_options = "scale_down")

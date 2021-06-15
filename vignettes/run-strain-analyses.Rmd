@@ -291,7 +291,7 @@ progressionEstimation::compare_model_fits_with_loo(model_list) %>%
 
 ```
 
-These results show the four-best fitting models all perform similarly well - the `elpd_diff` values are below four and similar in magnitude to the to `se_diff` values, so there is little difference between them. The only model that significantly underperforms is the `serotype_type_specific_poisson`. Notably, this is the only model not to feature information on isolates' strain backgrounds, suggesting that there are differences in invasiveness between strain backgrounds.
+These results show the four-best fitting models all perform similarly well - the `elpd_diff` values are below four and similar in magnitude to the to `se_diff` values, so there is little substantial difference between them. The only model that significantly underperforms is the `serotype_then_strain_type_specific_poisson`. The poor fit of this model suggests the heterogeneity in progression rates across the species are poorly described by .
 
 The models can also be compared using Bayes' factors:
 
@@ -303,4 +303,4 @@ progressionEstimation::compare_model_fits_with_bf(model_list) %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
 ```
-These results agree that the `strain_type_specific_poisson` and `combined_serotype_and_strain_type_specific_poisson`.
+These results agree that the `strain_type_specific_poisson` and `combined_serotype_and_strain_type_specific_poisson` models are the best-performing with this dataset. The `strain_then_serotype_type_specific_poisson` and `serotype_then_strain_type_specific_poisson` models both perform similarly poorly. This likely reflects them having the same set of prior distributions, which are distinct from those of the other models, as prior distributions do not affect the LOO-CV comparison. The Bayes factor analysis suggests classification by strain is a better approach to analysing progression rates than classification by serotype.

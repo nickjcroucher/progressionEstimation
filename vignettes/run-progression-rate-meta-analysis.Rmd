@@ -35,13 +35,15 @@ roxygen2::roxygenize(package.dir = "..")
 
 ## Processing input data
 
-The new data for analysis is contained within the spreadsheet `s_pneumoniae_netherlands.xlsx`. This is loaded as a data frame without using the `strain` column, which is empty, as only serotypes were ascertained in this study:
+The new data for analysis is contained within the spreadsheet `s_pneumoniae_sweden.xlsx`. This is loaded as a data frame without using the `strain` column, which is empty, as only serotypes were ascertained in this study:
 
 ```{r Read spreadsheet}
 
-s_pneumoniae_netherlands_df <-
-  progressionEstimation::process_input_xlsx("s_pneumoniae_netherlands.xlsx",
+s_pneumoniae_sweden_df <-
+  progressionEstimation::process_input_xlsx("s_pneumoniae_sweden.xlsx",
                                             use_strain = FALSE)
+
+progressionEstimation::validate_progression_estimation_dataset(s_pneumoniae_sweden_df)
 
 ```
 
@@ -50,7 +52,7 @@ These data are from carriage and disease in infants, categorised by serotype, an
 ```{r Combine with existing data}
 
 updated_s_pneumoniae_infant_df <- 
-  progressionEstimation::combine_with_existing_datasets(s_pneumoniae_netherlands_df,
+  progressionEstimation::combine_with_existing_datasets(s_pneumoniae_sweden_df,
                                                         S_pneumoniae_infant_serotype)
 
 ```
@@ -84,7 +86,7 @@ s_pneumoniae_study_scale_poisson_fit <-
                                                     type_specific = TRUE,
                                                     location_adjustment = TRUE,
                                                     num_chains = 2,
-                                                    num_iter = 5e3)
+                                                    num_iter = 1e4)
 
 ```
 
@@ -92,7 +94,7 @@ The two MCMCs can then be combined to check for convergence through calculating 
 
 ``` {r Estimate r hat}
 
-plot(s_pneumoniae_study_scale_poisson_fit, plotfun = "rhat")
+plot(s_pneumoniae_study_scale_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
 
 ```
 
@@ -148,7 +150,7 @@ s_pneumoniae_poisson_fit <-
                                                     type_specific = TRUE,
                                                     location_adjustment = FALSE,
                                                     num_chains = 2,
-                                                    num_iter = 5e3)
+                                                    num_iter = 1e4)
 ```
 
 Once fitted, this model output can be appended to the original data frame:
@@ -178,8 +180,10 @@ The first comparison we run is with LOO-CV using the `loo` package:
 
 ``` {r Compare models with LOO-CV}
 
-progressionEstimation::compare_model_fits_with_loo(list(s_pneumoniae_poisson_fit,
-                                 s_pneumoniae_study_scale_poisson_fit)) %>%
+study_list <- list(s_pneumoniae_poisson_fit,
+                                 s_pneumoniae_study_scale_poisson_fit)
+
+progressionEstimation::compare_model_fits_with_loo(study_list) %>%
   kableExtra::kable()  %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
@@ -187,12 +191,11 @@ progressionEstimation::compare_model_fits_with_loo(list(s_pneumoniae_poisson_fit
 
 In this table, each row is a different model, ordered from the best-fitting at the top, to the worst-fitting at the bottom. This is based on the expected log pointwise predictive density (ELPD) for each model. The difference between  models is calculated in the *elpd_diff* column; negative values indicate worse fits. The standard error of the ELPD values across a model is given by the *se_diff* column; all of these values are relative to the best-fitting model. One model can be regarded as outperforming another when *elpd_diff* is greater than four, and larger than the corresponding *se_diff*. Here we can conclude that best-fitting model is that with type-specific progression rates; that is, there are significant differences in progression rates between serotypes.
 
-An alternative approach to comparing models is to use Bayes factors. A practical consideration is that LOO-CV uses likelihoods, and is therefore not directly affected by prior distributions. However, Bayes factors are calculated using marginal likelihoods, which involve [directly sampling from the prior](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5699790/). With stan models, Bayes factors can be calculated with the `bridgesampling` package. This can be run: 
+An alternative approach to comparing models is to use Bayes factors. A practical consideration is that LOO-CV uses likelihoods, and is therefore not directly affected by prior distributions. However, Bayes factors are calculated using marginal likelihoods, which involve [directly sampling from the prior](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5699790/). With stan models, Bayes factors can be calculated with the `bridgesampling` package. This can be run:
 
 ``` {r Compare models with Bayes factors}
 
-progressionEstimation::compare_model_fits_with_bf(list(s_pneumoniae_poisson_fit,
-                                 s_pneumoniae_study_scale_poisson_fit)) %>%
+progressionEstimation::compare_model_fits_with_bf(study_list, num_iter = 1e4) %>%
   dplyr::rename(`log(Bayes factor)` = log_Bayes_factor) %>%
   kableExtra::kable()  %>%
   kableExtra::kable_styling(latex_options = "scale_down")

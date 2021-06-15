@@ -15,8 +15,11 @@ process_pneumo_df <- function(fn) {
 # Load raw data from .csv file
 S_pneumoniae_infant_serotype <- process_pneumo_df("data-raw/S_pneumoniae_infant_serotype.csv")
 S_pneumoniae_adult_serotype <- process_pneumo_df("data-raw/S_pneumoniae_adult_serotype.csv")
+S_pneumoniae_infant_strain <- read.csv("data-raw/S_pneumoniae_infant_strain.csv")
+S_pneumoniae_mixed_strain <- read.csv("data-raw/S_pneumoniae_mixed_strain.csv")
 
 # Save the cleaned data in the required R package location
 usethis::use_data(S_pneumoniae_infant_serotype, overwrite = TRUE)
 usethis::use_data(S_pneumoniae_adult_serotype, overwrite = TRUE)
-
+usethis::use_data(S_pneumoniae_infant_strain, overwrite = TRUE)
+usethis::use_data(S_pneumoniae_mixed_strain, overwrite = TRUE)

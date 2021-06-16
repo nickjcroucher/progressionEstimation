@@ -57,7 +57,7 @@ updated_s_pneumoniae_infant_df <-
 
 ```
 
-The combined data can then be convered to the corred input format for model fitting:
+The combined data can then be convered to the corrected input format for model fitting:
 
 ``` {r Process input data}
 
@@ -103,8 +103,8 @@ As all the parameters appear to have been robustly estimated ($\hat{R}$ < 1.05),
 ``` {r Process Poisson model output}
 
 updated_s_pneumoniae_study_specific_model_output_df <-
-  progressionEstimation::process_progression_rate_model_output(updated_s_pneumoniae_infant_df,
-                                                               s_pneumoniae_study_scale_poisson_fit)
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_study_scale_poisson_fit,
+                                                               updated_s_pneumoniae_infant_df)
 
 ```
 
@@ -158,8 +158,8 @@ Once fitted, this model output can be appended to the original data frame:
 ``` {r Process null model output}
 
 updated_s_pneumoniae_model_output_df <-
-  progressionEstimation::process_progression_rate_model_output(updated_s_pneumoniae_infant_df,
-                                                               s_pneumoniae_poisson_fit)
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_poisson_fit,
+                                                               updated_s_pneumoniae_infant_df)
 
 ```
 

@@ -221,8 +221,8 @@ get_lower<-function(parameter,model) {
 
 #' Process the model output for downstream analysis
 #'
-#' @param input_df Data frame used as input to model fitting
 #' @param model_output Stanfit object returned by model fitting
+#' @param input_df Data frame used as input to model fitting
 #' @param subtype Name of column used to define subtypes
 #' @param strain_as_primary_type Whether strain was used as the primary determinant of progression rate, and the other subtype used as the secondary determinant
 #' @param strain_as_secondary_type Whether strain was used as the secondary determinant of progression rate, and the other subtype used as the primary determinant
@@ -232,8 +232,8 @@ get_lower<-function(parameter,model) {
 #' @return A data frame
 #' @export
 #'
-process_progression_rate_model_output<-function(input_df,
-                                                model_output,
+process_progression_rate_model_output<-function(model_output,
+                                                input_df,
                                                 subtype = "categorisation",
                                                 strain_as_primary_type = FALSE,
                                                 strain_as_secondary_type = FALSE,
@@ -350,11 +350,13 @@ process_progression_rate_model_output<-function(input_df,
 #'
 #' @param model_output_df Data frame include input data and model fit output
 #' @param n_label Number of top-ranked observations to label
+#' @param legend Boolean specifying whether a legend should be included in the plot
+#' @param just_legend Whether to only return the legend
 #'
 #' @return ggplot2 plot
 #' @export
 #'
-plot_case_carrier_predictions <- function(model_output_df, n_label = 3) {
+plot_case_carrier_predictions <- function(model_output_df, n_label = 3, legend = TRUE, just_legend = FALSE) {
   if (!("carriage_prediction" %in% colnames(model_output_df))) {
     stop("Need to include model output in data frame for plotting")
   }
@@ -403,16 +405,25 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3) {
                              alpha = 0.9,
                              force = 50,
                              inherit.aes = FALSE)
-  # Add in function for colouring by location if appropriat
+  # Add in function for colouring by location if appropriate
   if (model_output_df$study %>% dplyr::n_distinct() > 1) {
     carriage_plot <- carriage_plot +
       geom_point(aes(color = study)) +
-      geom_errorbar(aes(color = study), alpha = 0.75) +
-      theme(legend.position = "bottom")
+      geom_errorbar(aes(color = study), alpha = 0.75)
     disease_plot <- disease_plot +
       geom_point(aes(color = study)) +
-      geom_errorbar(aes(color = study), alpha = 0.75) +
-      theme(legend.position = "bottom")
+      geom_errorbar(aes(color = study), alpha = 0.75)
+    if (just_legend | legend) {
+      carriage_plot <- carriage_plot +
+        theme(legend.position = "bottom")
+      disease_plot <- disease_plot +
+        theme(legend.position = "bottom")
+    } else {
+      carriage_plot <- carriage_plot +
+        theme(legend.position = "none")
+      disease_plot <- disease_plot +
+        theme(legend.position = "none")
+    }
   } else {
     carriage_plot <- carriage_plot +
       geom_point(color = "blue") +
@@ -422,7 +433,11 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3) {
       geom_errorbar(color = "blue", alpha = 0.75)
   }
 
-  cowplot::plot_grid(plotlist = list(carriage_plot, disease_plot))
+  if (just_legend) {
+    return(cowplot::get_legend(carriage_plot))
+  } else {
+    return(cowplot::plot_grid(plotlist = list(carriage_plot, disease_plot)))
+  }
 }
 
 
@@ -471,7 +486,7 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
 #' Compare model fits using Bayes factors
 #'
 #' @param model_list List of stan fit objects
-#' @param num_iter Number of iterations used for bridghe sampling
+#' @param num_iter Number of iterations used for bridge sampling
 #'
 #' @return Data frame containing Bayes factors
 #' @export

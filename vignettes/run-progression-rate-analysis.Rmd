@@ -112,8 +112,8 @@ All the parameters are estimated with $\hat{R}$ below the generally accepted thr
 ``` {r Process Poisson model output}
 
 s_pneumoniae_sweden_poisson_model_output_df <-
-  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_sweden_df,
-                                                               s_pneumoniae_sweden_poisson_fit)
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_sweden_poisson_fit,
+                                                               s_pneumoniae_sweden_df)
 
 ```
 
@@ -158,8 +158,8 @@ Once fitted, this model output can be appended to the original data frame:
 ``` {r Process null model output}
 
 s_pneumoniae_sweden_null_model_output_df <-
-  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_sweden_df,
-                                                               s_pneumoniae_sweden_null_fit)
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_sweden_null_fit,
+                                                               s_pneumoniae_sweden_df)
 
 ```
 

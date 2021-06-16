@@ -108,8 +108,8 @@ s_pneumoniae_sweden_by_serotype_fit <-
                                                     num_iter = 1e4)
 
 s_pneumoniae_sweden_serotype_output_df <-
-  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_strains_df,
-                                                               s_pneumoniae_sweden_by_serotype_fit,
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_sweden_by_serotype_fit,
+                                                               s_pneumoniae_strains_df,
                                                                condense = FALSE)
 
 ```
@@ -127,8 +127,8 @@ s_pneumoniae_sweden_by_strain_fit <-
                                                     num_iter = 1e4)
 
 s_pneumoniae_sweden_strain_output_df <-
-  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_strains_df,
-                                                               s_pneumoniae_sweden_by_strain_fit,
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_sweden_by_strain_fit,
+                                                               s_pneumoniae_strains_df,
                                                                subtype = "strain",
                                                                condense = FALSE)
 
@@ -148,8 +148,8 @@ s_pneumoniae_sweden_by_serotype_then_strain_fit <-
                                                     num_iter = 1e4)
 
 s_pneumoniae_sweden_by_serotype_then_strain_output_df <-
-  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_strains_df,
-                                                            s_pneumoniae_sweden_by_serotype_then_strain_fit,
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_sweden_by_serotype_then_strain_fit,
+                                                               s_pneumoniae_strains_df,
                                                                strain_as_secondary_type = TRUE,
                                                                condense = FALSE)
 ```
@@ -168,8 +168,8 @@ s_pneumoniae_sweden_by_strain_then_serotype_fit <-
                                                     num_iter = 1e4)
 
 s_pneumoniae_sweden_by_strain_then_serotype_output_df <-
-  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_strains_df,
-                                                            s_pneumoniae_sweden_by_strain_then_serotype_fit,
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_sweden_by_strain_then_serotype_fit,
+                                                               s_pneumoniae_strains_df,
                                                                strain_as_primary_type = TRUE,
                                                                condense = FALSE)
 
@@ -188,9 +188,9 @@ s_pneumoniae_sweden_combined_strain_serotype_fit <-
                                                     num_iter = 1e4)
 
 s_pneumoniae_sweden_combined_strain_serotype_output_df <-
-  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_strains_df,
-                                                            s_pneumoniae_sweden_combined_strain_serotype_fit,
-                                                            combined_strain_subtype = TRUE,
+  progressionEstimation::process_progression_rate_model_output(s_pneumoniae_sweden_combined_strain_serotype_fit,
+                                                               s_pneumoniae_strains_df,
+                                                               combined_strain_subtype = TRUE,
                                                                condense = FALSE)
 
 ```

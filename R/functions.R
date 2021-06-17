@@ -335,6 +335,16 @@ process_progression_rate_model_output<-function(model_output,
     )
     input_df %<>% dplyr::left_join(secondary_progression_rates_df, by = setNames("type","strain"))
   }
+
+  if ("phi_nb" %in% model_output@model_pars) {
+    precision_parameters_df <- data.frame(
+      "phi" = get_mean("phi_nb",model_output),
+      "phi_lower" = get_lower("phi_nb",model_output),
+      "phi_upper" = get_upper("phi_nb",model_output)
+    )
+    input_df %<>% dplyr::bind_cols(precision_parameters_df)
+  }
+
   # Extract predictions and intervals
   input_df %<>%
     dplyr::mutate(carriage_prediction = get_mean("c_ij_pred",model_output)) %>%
@@ -447,11 +457,14 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, legend =
 #' @param subtype Name of column to be used on x axis
 #' @param unit_time String specifying the time unit for the y axis label
 #' @param type_name Name of categorisation scheme for x axis label
+#' @param colour_col Name of the column used for colour scheme
+#' @param colour_palette Named vector to be used for colour scheme
 #'
 #' @return
 #' @export
 #'
-plot_progression_rates <- function(model_output_df, subtype = "categorisation", unit_time = "unit time", type_name = "categorisation") {
+plot_progression_rates <- function(model_output_df, subtype = "categorisation", unit_time = "unit time", type_name = "categorisation",
+                                   colour_col = NULL, colour_palette = NULL) {
   if (!("carriage_prediction" %in% colnames(model_output_df))) {
     stop("Need to include model output in data frame for plotting")
   }
@@ -469,18 +482,51 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
     dplyr::slice_head(n=1) %>%
     dplyr::ungroup()
 
-  ggplot(model_output_df,
-         aes(x = get(subtype),
-             y = get(progression_rate_values[1]),
-             ymin = get(progression_rate_values[2]),
-             ymax = get(progression_rate_values[3]))) +
+  if (is.null(colour_col)) {
+    base_graph <-
+      ggplot(model_output_df,
+             aes(x = get(subtype),
+                 y = get(progression_rate_values[1]),
+                 ymin = get(progression_rate_values[2]),
+                 ymax = get(progression_rate_values[3])))
+  } else {
+    base_graph <-
+      ggplot(model_output_df,
+             aes(x = get(subtype),
+                 y = get(progression_rate_values[1]),
+                 ymin = get(progression_rate_values[2]),
+                 ymax = get(progression_rate_values[3]),
+                 colour = get(colour_col),
+                 fill = get(colour_col)))
+  }
+
+  point_graph <-
+    base_graph +
     geom_point() +
     geom_errorbar() +
     ylab(y_label_text) +
     xlab(type_name) +
     scale_y_continuous(trans ="log10") +
-    theme_bw() +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+    theme_bw()
+
+  if (!is.null(colour_col) & !is.null(colour_palette)) {
+    point_graph <- point_graph +
+      scale_colour_manual(values = colour_palette,
+                          name = colour_col) +
+      scale_fill_manual(values = colour_palette,
+                        name = colour_col) +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
+            legend.position = "bottom")
+  } else if (!is.null(colour_col)) {
+    point_graph <- point_graph +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
+            legend.position = "bottom")
+  } else {
+    point_graph <- point_graph +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+  }
+
+  return(point_graph)
 }
 
 #' Compare model fits using Bayes factors
@@ -515,7 +561,6 @@ compare_model_fits_with_bf <- function(model_list, num_iter = 1e3, num_threads =
   return(bf_df)
 }
 
-
 run_loo_analysis <- function(model_fit, num_threads = 1) {
   ll <- loo::extract_log_lik(model_fit, merge_chains = F)
   r_eff <- loo::relative_eff(ll, cores = num_threads)
@@ -537,7 +582,7 @@ compare_model_fits_with_loo <- function(model_list, num_threads = 1) {
   model_loo <- lapply(model_list, run_loo_analysis, num_threads = num_threads)
   loo_comparisons <- loo::loo_compare(model_loo)
   model_names <- unlist(lapply(model_list, getElement, "model_name"))
-  rownames(loo_comparisons) <- model_names[order(rownames(loo_comparisons))]
+  rownames(loo_comparisons) <- model_names[as.integer(gsub("model","",rownames(loo_comparisons)))]
   return(loo_comparisons)
 }
 

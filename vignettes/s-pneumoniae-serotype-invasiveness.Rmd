@@ -35,14 +35,20 @@ roxygen2::roxygenize(package.dir = "..")
 # Define serotype categories and palettes
 vaccine_types <- list(
   "PCV7" = c("4","6B","9V","14","18C","19F","23F"),
-  "PCV10" = c("4","6B","9V","14","18C","19F","23F","1","5","7F"),
-  "PCV13" = c("4","6B","9V","14","18C","19F","23F","1","5","7F","6A","3","19A")
+  "PCV10" = c("1","5","7F"),
+  "PCV13" = c("6A","3","19A"),
+  "PCV15" = c("22F","33F"),
+  "PCV20" = c("8","10A","11A","12F","15B/C"),
+  "PPV23" = c("2","9N","17F","20")
 )
 
 vaccine_colours <- c("No PCV" = "blue",
                      "PCV7" = "red",
                      "PCV10" = "orange",
-                     "PCV13" = "coral2")
+                     "PCV13" = "coral2",
+                     "PCV15" = "pink",
+                     "PCV20" = "purple",
+                     "PPV23" = "black")
 
 epi_colors <- c(
   "carriage" = "skyblue",
@@ -169,7 +175,7 @@ $$d_{i,j} \sim Pois(\nu\rho_{i,j}N_{i}t_{i})$$
 ``` {r Null Poisson model fit, include = FALSE}
 
 n_chains <- 2
-n_iter <- 1e5
+n_iter <- 5e4
 n_core <- 2
 
 null_poisson_fit <- 
@@ -341,13 +347,15 @@ cowplot::plot_grid(plotlist = trace_plots, ncol = 4, nrow = 2, labels = "AUTO")
 
 For each model, the output can be processed, and the observations plotted against each model's predictions.
 
-``` {r Process model outputs and plot predictions, fig.height = 12}
+``` {r Process model outputs and plot predictions, fig.height = 18}
 
 model_outputs <- lapply(fit_list,
                         progressionEstimation::process_progression_rate_model_output,
                         filtered_S_pneumoniae_infant_serotype)
 
-prediction_plots <- lapply(model_outputs, progressionEstimation::plot_case_carrier_predictions, legend = FALSE)
+prediction_plots <- lapply(model_outputs,
+                           progressionEstimation::plot_case_carrier_predictions,
+                           legend = FALSE)
 
 no_leg_plot <- cowplot::plot_grid(plotlist = prediction_plots, ncol = 1, nrow = 8, labels = "AUTO")
 
@@ -357,16 +365,45 @@ cowplot::plot_grid(no_leg_plot, prediction_plot_legend, ncol = 1, rel_heights = 
 
 ```
 
+The fits of the negative binomial can be evaluated through plotting the estimates of the precision parameter, $\phi$. As $\phi$ increases, the variance of the negative binomial distribution decreases, and the negative binomal model becomes more similar to the Poisson model.
+
+``` {r Plot precision parameters for negative binomial models}
+
+nb_model_phi_values_df <- data.frame()
+
+for (i in c(2,4,6,8)) {
+  phi_df <- data.frame(
+    "Model" = fit_list[[i]]@model_name,
+    "phi" = model_outputs[[i]]$phi[1],
+    "phi_lower" = model_outputs[[i]]$phi_lower[1],
+    "phi_upper" = model_outputs[[i]]$phi_upper[1]
+  )
+  nb_model_phi_values_df %<>% dplyr::bind_rows(phi_df)
+}
+
+ggplot(nb_model_phi_values_df,
+         aes(x = Model,
+             y = phi,
+             ymin = phi_lower,
+             ymax = phi_upper)) +
+  geom_point() +
+  geom_errorbar() +
+  theme_bw() +
+  ylab(expression(phi))
+
+```
+
 ## Run model comparison with leave-one-out cross-validation
 
 The model likelihoods can be compared using leave-one-out cross-validation:
 
 ``` {r Comparison with LOO-CV, include = FALSE}
 
-loo_comparison <- progressionEstimation::compare_model_fits_with_loo(fit_list)
-loo_comparison %>%
+loo_comparison <- progressionEstimation::compare_model_fits_with_loo(fit_list,
+                                                                     num_threads = n_core)
+(loo_comparison %>%
   kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down")
+  kableExtra::kable_styling(latex_options = "scale_down"))
 
 ```
 
@@ -376,21 +413,62 @@ The models can also be compared with Bayes factors:
 
 ``` {r Comparison with BF, include = FALSE}
 
-bf_comparison <- progressionEstimation::compare_model_fits_with_bf(fit_list, num_iter = n_iter)
-bf_comparison %>%
+bf_comparison <- progressionEstimation::compare_model_fits_with_bf(fit_list,
+                                                                   num_iter = n_iter,
+                                                                   num_threads = n_core)
+(bf_comparison %>%
   kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down")
+  kableExtra::kable_styling(latex_options = "scale_down"))
 
 ```
 
 ## Plot serotype invasiveness
 
+The best-fitting model can then be applied to the overall dataset.
+
 ``` {r Plot invasiveness estimates from best-fitting model}
 
-invasiveness_plot <-
-  progressionEstimation::plot_progression_rates(model_outputs[[7]],
+# Annotate serotypes by status
+best_fitting_output <- 
+  model_outputs[[7]] %>%
+    dplyr::mutate("classification" = dplyr::case_when(
+        categorisation %in% vaccine_types[["PCV7"]] ~ "PCV7",
+        categorisation %in% vaccine_types[["PCV10"]] ~ "PCV10",
+        categorisation %in% vaccine_types[["PCV13"]] ~ "PCV13",
+        categorisation %in% vaccine_types[["PCV15"]] ~ "PCV15",
+        categorisation %in% vaccine_types[["PCV20"]] ~ "PCV20",
+        categorisation %in% vaccine_types[["PPV23"]] ~ "PPV23",
+        TRUE ~ "No PCV"
+      )
+    ) %>%
+    dplyr::mutate(classification = factor(classification, levels = c("PCV7",
+                                                                     "PCV10",
+                                                                     "PCV13",
+                                                                     "PCV15",
+                                                                     "PCV20",
+                                                                     "PPV23",
+                                                                     "No PCV")))
+
+# Order serotypes
+serotype_levels <-
+  best_fitting_output %>%
+    dplyr::select(categorisation,classification) %>%
+    dplyr::distinct() %>%
+    dplyr::arrange(classification,categorisation) %>%
+    dplyr::select(categorisation) %>%
+    dplyr::pull()
+
+best_fitting_output %<>%
+  dplyr::mutate(categorisation = factor(categorisation, levels = serotype_levels))
+
+
+# Plot
+(invasiveness_plot <-
+  progressionEstimation::plot_progression_rates(best_fitting_output,
                                                 unit_time = "year",
-                                                type_name = "Serotype")
+                                                type_name = "Serotype",
+                                                colour_col = "classification",
+                                                colour_palette = vaccine_colours))
 
 ```
 
@@ -398,9 +476,30 @@ invasiveness_plot <-
 
 ``` {r Plot study-specific scale factor estimates from best-fitting model}
 
-scale_factor_plot <-
-  progressionEstimation::plot_study_scale_factors(model_outputs[[7]])
+(scale_factor_plot <-
+  progressionEstimation::plot_study_scale_factors(model_outputs[[7]]))
 
 ```
 
-## Comparison 
+## Comparison with odds ratio calculation
+
+``` {r Calculate odds ratios}
+
+require(metafor)
+
+get_serotype_stats <- function(serotype, df) {
+  sero_df <-
+    df %>%
+      tidyr::pivot_longer(c(carriage,disease),
+                          names_to = "clinical_manifestation",
+                          values_to = "observation") %>%
+      dplyr::group_by(study) %>%
+      dplyr::mutate(matching_type = dplyr::if_else(categorisation == serotype,1,0)) %>%
+
+      dplyr::mutate(matching_type_disease = dplyr::count(matching_type)))
+      
+}
+
+filtered_S_pneumoniae_infant_serotype
+
+```

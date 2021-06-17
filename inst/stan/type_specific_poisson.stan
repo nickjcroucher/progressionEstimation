@@ -20,16 +20,15 @@ parameters {
   // carriage prevalence ~ U(0,1)
   vector<lower=0.0,upper=1.0>[n_obs] rho_ij;
 
-  // log invasiveness ~ U(-9,0)
-  vector<lower=-9,upper=1.0>[j_max] log_nu_j;
-  //vector<lower=0.0,upper=1.0>[j_max] nu_j;
+  // log invasiveness ~ U(-6,1)
+  vector<lower=-6,upper=1>[j_max] log_nu_j;
 
 }
 
 transformed parameters {
 
   // calculate invasiveness on a real scale
-  vector<lower=0,upper=1.0>[j_max] nu_j;
+  vector<lower=0,upper=10.0>[j_max] nu_j;
   for (j in 1:j_max) {
     nu_j[j] = pow(10, log_nu_j[j]);
   }
@@ -46,7 +45,7 @@ model {
     int j = j_values[index];
 
     // calculate prior probability
-    target += uniform_lpdf( log_nu_j[j] | -9, 0);
+    target += uniform_lpdf( log_nu_j[j] | -6, 1);
     //target += uniform_lpdf( nu_j[j] | 0,1);
     target += uniform_lpdf(rho_ij[index] | 0,1);
 

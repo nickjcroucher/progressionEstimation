@@ -239,6 +239,9 @@ process_progression_rate_model_output<-function(model_output,
                                                 strain_as_secondary_type = FALSE,
                                                 combined_strain_subtype = FALSE,
                                                 condense = FALSE) {
+  # Add model name
+  input_df %<>%
+    dplyr::mutate(model_name = model_output@model_name)
   # Process input data
   if (strain_as_primary_type | strain_as_secondary_type | combined_strain_subtype) {
     input_df %<>%
@@ -248,7 +251,8 @@ process_progression_rate_model_output<-function(model_output,
       subtype = "combined"
     }
     input_df %<>%
-      dplyr::select(study,
+      dplyr::select(model_name,
+                    study,
                     !!subtype,
                     carriage,
                     disease,
@@ -261,7 +265,8 @@ process_progression_rate_model_output<-function(model_output,
   if (condense) {
     if (strain_as_primary_type | strain_as_secondary_type) {
       input_df <- combine_rows(input_df %>%
-                                 dplyr::select(study,
+                                 dplyr::select(model_name,
+                                               study,
                                                !!subtype,
                                                carriage,
                                                disease,
@@ -272,7 +277,8 @@ process_progression_rate_model_output<-function(model_output,
         dplyr::distinct()
     } else {
       input_df <- combine_rows(input_df %>%
-                                 dplyr::select(study,
+                                 dplyr::select(model_name,
+                                               study,
                                                !!subtype,
                                                carriage,
                                                disease,
@@ -353,6 +359,12 @@ process_progression_rate_model_output<-function(model_output,
     dplyr::mutate(disease_prediction = get_mean("d_ij_pred",model_output)) %>%
     dplyr::mutate(disease_prediction_lower = get_lower("d_ij_pred",model_output)) %>%
     dplyr::mutate(disease_prediction_upper =  get_upper("d_ij_pred",model_output))
+
+  # Add in RMSE
+  input_df %<>%
+    dplyr::mutate(carriage_rmse = ((carriage - carriage_prediction)**2)**0.5) %>%
+    dplyr::mutate(disease_rmse = ((disease - disease_prediction)**2)**0.5)
+
   return(input_df)
 }
 
@@ -561,25 +573,24 @@ compare_model_fits_with_bf <- function(model_list, num_iter = 1e3, num_threads =
   return(bf_df)
 }
 
-run_loo_analysis <- function(model_fit, num_threads = 1) {
-  ll <- loo::extract_log_lik(model_fit, merge_chains = F)
-  r_eff <- loo::relative_eff(ll, cores = num_threads)
-  loo <- loo(ll,
-             r_eff = r_eff,
-             cores = num_threads,
-             save_psis = TRUE)
-  return(loo)
-}
-
 #' Compare model fits using leave-one-out cross-validation
 #'
 #' @param model_list List of stan fit objects
+#' @param log_lik_param Name of log likelihood parameter
+#' @param use_moments Boolean specifying whether to use moment matching
+#' @param num_threads Number of core to use
 #'
 #' @return Data frame containing cross-validation values
 #' @export
 #'
-compare_model_fits_with_loo <- function(model_list, num_threads = 1) {
-  model_loo <- lapply(model_list, run_loo_analysis, num_threads = num_threads)
+compare_model_fits_with_loo <- function(model_list,
+                                        log_lik_param = "log_lik",
+                                        use_moments = FALSE,
+                                        num_threads = 1) {
+  model_loo <- lapply(model_list, rstan::loo,
+                      pars = log_lik_param,
+                      moment_match = use_moments,
+                      cores = num_threads)
   loo_comparisons <- loo::loo_compare(model_loo)
   model_names <- unlist(lapply(model_list, getElement, "model_name"))
   rownames(loo_comparisons) <- model_names[as.integer(gsub("model","",rownames(loo_comparisons)))]

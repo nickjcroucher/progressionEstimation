@@ -59,7 +59,10 @@ model {
 generated quantities {
 
   // Calculate and store log likelihood for loo
-  vector[2*n_obs] log_lik;
+  vector[n_obs] carriage_log_lik;
+  vector[n_obs] disease_log_lik;
+  vector[n_obs] log_lik;
+
 
   // Calculate and store predictions for carriage
   vector[n_obs] c_ij_pred;
@@ -78,8 +81,9 @@ generated quantities {
     d_ij_pred[index] = nu_j[j]*rho_ij[index]*N_i[index]*t_i[index];
 
     // calculate likelihood given data
-    log_lik[2*(index-1)+1] = binomial_lpmf( c_ij[index] | n_i[index], rho_ij[index] );
-    log_lik[2*(index-1)+2] = poisson_lpmf( d_ij[index] | nu_j[j]*rho_ij[index]*N_i[index]*t_i[index] );
+    carriage_log_lik[index] = binomial_lpmf( c_ij[index] | n_i[index], rho_ij[index] );
+    disease_log_lik[index] = poisson_lpmf(  d_ij[index] | d_ij_pred[index] );
+    log_lik[index] = carriage_log_lik[index] + disease_log_lik[index];
 
   }
 

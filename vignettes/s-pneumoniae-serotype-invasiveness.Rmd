@@ -134,11 +134,19 @@ threshold_count <- 5
 
 filtered_S_pneumoniae_infant_serotype <-
   S_pneumoniae_infant_serotype %>%
+    dplyr::filter(carriage >= threshold_count | disease >= threshold_count) %>%
     dplyr::group_by(categorisation) %>%
-    dplyr::mutate(max_serotype_count = max(max(carriage),max(disease))) %>%
+    dplyr::mutate(study_count = n()) %>%
     dplyr::ungroup() %>%
-    dplyr::filter(max_serotype_count >= threshold_count) %>%
-    dplyr::select(-max_serotype_count)
+    dplyr::filter(study_count > threshold_count) %>%
+    dplyr::group_by(study) %>%
+    dplyr::mutate(serotype_count = n()) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(serotype_count > threshold_count) %>%
+    dplyr::mutate(categorisation = factor(categorisation))
+
+filtered_S_pneumoniae_infant_serotype %<>%
+    dplyr::mutate(study = factor(study, levels = studies_by_size[studies_by_size %in% unique(filtered_S_pneumoniae_infant_serotype$study)]))
 
 filtered_S_pneumoniae_infant_serotype %<>%
     dplyr::mutate(categorisation = factor(categorisation,
@@ -175,7 +183,7 @@ $$d_{i,j} \sim Pois(\nu\rho_{i,j}N_{i}t_{i})$$
 ``` {r Null Poisson model fit, include = FALSE}
 
 n_chains <- 2
-n_iter <- 5e4
+n_iter <- 2.5e4
 n_core <- 2
 
 null_poisson_fit <- 
@@ -365,31 +373,66 @@ cowplot::plot_grid(no_leg_plot, prediction_plot_legend, ncol = 1, rel_heights = 
 
 ```
 
+The deviation of the predicted and observed values can be simply evaluated using the root mean square error:
+
+``` {r Calculate RMSE}
+
+obs_pred_df <-
+  dplyr::bind_rows(model_outputs) %>%
+  dplyr::select(model_name,carriage_rmse,disease_rmse,phi,phi_lower,phi_upper) %>%
+  tidyr::pivot_longer(c(carriage_rmse,disease_rmse), names_to = "Observation", values_to = "RMSE") %>%
+  dplyr::mutate(model_name = factor(model_name,
+                                    levels = c(
+                                      "null_poisson",
+                                      "null_negbin",
+                                      "type_specific_poisson",
+                                      "type_specific_negbin",
+                                      "adjusted_null_poisson",
+                                      "adjusted_null_negbin",
+                                      "adjusted_type_specific_poisson",
+                                      "adjusted_type_specific_negbin"
+                                      )
+                                    )
+                ) %>%
+  dplyr::mutate(Observation = dplyr::case_when(
+                    Observation == "carriage_rmse" ~ "Carriage",
+                    Observation == "disease_rmse" ~ "Disease"
+                  )
+                )
+
+ggplot(obs_pred_df, aes(x = model_name, y = RMSE)) +
+  #geom_boxplot(outlier.shape = NA) +
+  geom_point(position = position_jitter(width = 0.25),
+             alpha = 0.25,
+             cex = 0.75,
+             colour = "blue",
+             pch = 4) +
+  geom_violin(fill = NA) +
+  scale_y_continuous(trans="log10") +
+  theme_bw() +
+  facet_grid(Observation ~ .) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+```
+
 The fits of the negative binomial can be evaluated through plotting the estimates of the precision parameter, $\phi$. As $\phi$ increases, the variance of the negative binomial distribution decreases, and the negative binomal model becomes more similar to the Poisson model.
 
-``` {r Plot precision parameters for negative binomial models}
+``` {r Plot precision parameters for negative binomial models, fig.width = 6}
 
-nb_model_phi_values_df <- data.frame()
-
-for (i in c(2,4,6,8)) {
-  phi_df <- data.frame(
-    "Model" = fit_list[[i]]@model_name,
-    "phi" = model_outputs[[i]]$phi[1],
-    "phi_lower" = model_outputs[[i]]$phi_lower[1],
-    "phi_upper" = model_outputs[[i]]$phi_upper[1]
-  )
-  nb_model_phi_values_df %<>% dplyr::bind_rows(phi_df)
-}
-
-ggplot(nb_model_phi_values_df,
-         aes(x = Model,
-             y = phi,
-             ymin = phi_lower,
-             ymax = phi_upper)) +
+ggplot(obs_pred_df %>%
+        dplyr::filter(!is.na(phi)) %>%
+        dplyr::group_by(model_name) %>%
+        dplyr::slice(1) %>%
+        dplyr::ungroup(),
+      aes(x = model_name,
+          y = phi,
+          ymin = phi_lower,
+          ymax = phi_upper)) +
   geom_point() +
-  geom_errorbar() +
+  geom_errorbar(width = 0.25) +
   theme_bw() +
-  ylab(expression(phi))
+  ylab(expression(phi)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 
 ```
 
@@ -397,28 +440,45 @@ ggplot(nb_model_phi_values_df,
 
 The model likelihoods can be compared using leave-one-out cross-validation:
 
-``` {r Comparison with LOO-CV, include = FALSE}
+``` {r Comparison with LOO-CV using full log likelihood, include = FALSE}
 
 loo_comparison <- progressionEstimation::compare_model_fits_with_loo(fit_list,
+                                                                     use_moments = TRUE,
                                                                      num_threads = n_core)
-(loo_comparison %>%
+
+loo_comparison %>%
   kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down"))
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+```
+
+The Pareto distribution k values are too high for robust estimates of the ELPD. This reflects many of the points being 
+
+``` {r Comparison with LOO-CV using disease distribution log likelihood, include = FALSE}
+
+disease_loo_comparison <- progressionEstimation::compare_model_fits_with_loo(fit_list,
+                                                                     log_lik_param = "disease_log_lik",
+                                                                     use_moments = TRUE,
+                                                                     num_threads = n_core)
+
+disease_loo_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
 
 ```
 
 ## Run model comparison with Bayes factors
 
-The models can also be compared with Bayes factors:
+As the models can instead be compared with Bayes factors:
 
 ``` {r Comparison with BF, include = FALSE}
 
 bf_comparison <- progressionEstimation::compare_model_fits_with_bf(fit_list,
                                                                    num_iter = n_iter,
                                                                    num_threads = n_core)
-(bf_comparison %>%
+bf_comparison %>%
   kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down"))
+  kableExtra::kable_styling(latex_options = "scale_down")
 
 ```
 
@@ -428,9 +488,34 @@ The best-fitting model can then be applied to the overall dataset.
 
 ``` {r Plot invasiveness estimates from best-fitting model}
 
+full_infant_serotype_invasiveness <- 
+  progressionEstimation::process_input_data(S_pneumoniae_infant_serotype)
+
+full_adjusted_type_specific_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(full_infant_serotype_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    stat_model = "poisson",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+rhat_plot <- plot(full_adjusted_type_specific_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
+
+trace_plot <- rstan::traceplot(full_adjusted_type_specific_poisson_fit, pars = "lp__")
+
+cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
+                   nrow = 1,
+                   ncol = 2,
+                   labels = "AUTO")
+
+```
+
+``` {r Plot invasiveness across all serotypes}
 # Annotate serotypes by status
 best_fitting_output <- 
-  model_outputs[[7]] %>%
+  progressionEstimation::process_progression_rate_model_output(full_adjusted_type_specific_poisson_fit,
+                                                               S_pneumoniae_infant_serotype) %>%
     dplyr::mutate("classification" = dplyr::case_when(
         categorisation %in% vaccine_types[["PCV7"]] ~ "PCV7",
         categorisation %in% vaccine_types[["PCV10"]] ~ "PCV10",
@@ -461,7 +546,6 @@ serotype_levels <-
 best_fitting_output %<>%
   dplyr::mutate(categorisation = factor(categorisation, levels = serotype_levels))
 
-
 # Plot
 (invasiveness_plot <-
   progressionEstimation::plot_progression_rates(best_fitting_output,
@@ -477,7 +561,7 @@ best_fitting_output %<>%
 ``` {r Plot study-specific scale factor estimates from best-fitting model}
 
 (scale_factor_plot <-
-  progressionEstimation::plot_study_scale_factors(model_outputs[[7]]))
+  progressionEstimation::plot_study_scale_factors(best_fitting_output))
 
 ```
 
@@ -495,11 +579,159 @@ get_serotype_stats <- function(serotype, df) {
                           values_to = "observation") %>%
       dplyr::group_by(study) %>%
       dplyr::mutate(matching_type = dplyr::if_else(categorisation == serotype,1,0)) %>%
-
-      dplyr::mutate(matching_type_disease = dplyr::count(matching_type)))
-      
+      dplyr::mutate(matching_type_disease =
+                      sum(observation[clinical_manifestation == "disease" & matching_type == 1])) %>%
+      dplyr::mutate(matching_type_carriage =
+                      sum(observation[clinical_manifestation == "carriage" & matching_type == 1])) %>%
+      dplyr::mutate(non_matching_type_disease =
+                      sum(observation[clinical_manifestation == "disease" & matching_type == 0])) %>%
+      dplyr::mutate(non_matching_type_carriage =
+                      sum(observation[clinical_manifestation == "carriage" & matching_type == 0])) %>%
+      dplyr::ungroup() %>%
+    dplyr::select(study,matching_type_disease,matching_type_carriage,non_matching_type_disease,non_matching_type_carriage) %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(serotype = serotype)
+  return(sero_df)
 }
 
-filtered_S_pneumoniae_infant_serotype
+per_serotype_estimate <- function(test_serotype, df, method_type = "FE") {
+  per_serotype_out <- metafor::rma(yi = yi,
+                       vi = vi,
+                       data = df,
+                       slab = study,
+                       subset = serotype == test_serotype,
+                       method = method_type,
+                       control=list(stepadj=0.5, maxiter=1000))
+  summary_df <-
+    data.frame(
+      "Analysis" = method_type,
+      "Serotype" = test_serotype,
+      "OR" = as.numeric(per_serotype_out$b),
+      "OR_upper" = per_serotype_out$ci.ub,
+      "OR_lower" = per_serotype_out$ci.lb,
+      "tau_squared" = per_serotype_out$tau2,
+      "i_squared" = per_serotype_out$I2,
+      "h_squared" = per_serotype_out$H2
+    )
+  return(summary_df)
+}
+
+serotype_or_df <- dplyr::bind_rows(lapply(
+                                   serotype_levels,
+                                   get_serotype_stats,
+                                   S_pneumoniae_infant_serotype)
+)
+
+serotype_effect_size_df <- metafor::escalc(measure = "OR",
+                                            ai = matching_type_disease,
+                                            bi = matching_type_carriage,
+                                            ci = non_matching_type_disease,
+                                            di = non_matching_type_carriage,
+                                            slab = study,
+                                            data = serotype_or_df)
+
+per_serotype_out <- dplyr::bind_rows(
+                    lapply(
+                      serotype_levels,
+                      per_serotype_estimate,
+                      serotype_effect_size_df
+                    ),
+                    lapply(
+                      serotype_levels,
+                      per_serotype_estimate,
+                      serotype_effect_size_df,
+                      method_type = "REML"
+                    )
+)
+
+# Combine the invasiveness estimates
+combined_invasiveness_df <-
+  dplyr::bind_rows(
+    per_serotype_out %>%
+      dplyr::select(Analysis, Serotype, OR, OR_upper, OR_lower) %>%
+      dplyr::rename(Invasiveness = OR) %>%
+      dplyr::rename(Invasiveness_upper = OR_upper) %>%
+      dplyr::rename(Invasiveness_lower = OR_lower),
+    best_fitting_output %>%
+      dplyr::select(model_name, nu, nu_lower, nu_upper, categorisation) %>%
+      dplyr::distinct() %>%
+      dplyr::rename(Analysis = model_name) %>%
+      dplyr::rename(Serotype = categorisation) %>%
+      dplyr::rename(Invasiveness = nu) %>%
+      dplyr::rename(Invasiveness_upper = nu_upper) %>%
+      dplyr::rename(Invasiveness_lower = nu_lower)
+  ) %>%
+  tidyr::pivot_wider(id_cols = Serotype,
+                     names_from = Analysis,
+                     values_from = c(Invasiveness,Invasiveness_upper,Invasiveness_lower),
+                     names_sep = "_") %>%
+    dplyr::mutate("classification" = dplyr::case_when(
+        Serotype %in% vaccine_types[["PCV7"]] ~ "PCV7",
+        Serotype %in% vaccine_types[["PCV10"]] ~ "PCV10",
+        Serotype %in% vaccine_types[["PCV13"]] ~ "PCV13",
+        Serotype %in% vaccine_types[["PCV15"]] ~ "PCV15",
+        Serotype %in% vaccine_types[["PCV20"]] ~ "PCV20",
+        Serotype %in% vaccine_types[["PPV23"]] ~ "PPV23",
+        TRUE ~ "No PCV"
+      )
+    )
+
+# Plot comparison of invasiveness estimates
+ggplot(combined_invasiveness_df,
+       aes(x = Invasiveness_adjusted_type_specific_poisson,
+           xmin = Invasiveness_lower_adjusted_type_specific_poisson,
+           xmax = Invasiveness_upper_adjusted_type_specific_poisson,
+           y = Invasiveness_FE,
+           ymin = Invasiveness_lower_FE,
+           ymax = Invasiveness_upper_FE,
+           colour = classification)) +
+  geom_errorbar(alpha = 0.25) +
+  geom_errorbarh(alpha = 0.25) +
+  geom_point() +
+  scale_x_continuous(trans = "log10") +
+  theme_bw() +
+  scale_color_manual(values = vaccine_colours) +
+  theme(legend.position = "bottom") +
+  ylab("Invasiveness estimated from log odds ratio") +
+  xlab("Invasivess estimate from adjusted type-specific Poisson (cases per carrier per year)") +
+  ggrepel::geom_label_repel(
+    data = (
+      combined_invasiveness_df %>%
+        dplyr::filter((Invasiveness_adjusted_type_specific_poisson < 10**(-4.1) & Invasiveness_FE > 0) |
+                        (Invasiveness_adjusted_type_specific_poisson > 1e-2 & Invasiveness_FE < 2))
+    ),
+    aes(label = Serotype)
+    )
+
+```
+
+``` {r Plot comparison with mixed effects}
+
+# Plot comparison of invasiveness estimates
+ggplot(combined_invasiveness_df,
+       aes(x = Invasiveness_adjusted_type_specific_poisson,
+           xmin = Invasiveness_lower_adjusted_type_specific_poisson,
+           xmax = Invasiveness_upper_adjusted_type_specific_poisson,
+           y = Invasiveness_REML,
+           ymin = Invasiveness_lower_REML,
+           ymax = Invasiveness_upper_REML,
+           colour = classification)) +
+  geom_errorbar(alpha = 0.25) +
+  geom_errorbarh(alpha = 0.25) +
+  geom_point() +
+  scale_x_continuous(trans = "log10") +
+  theme_bw() +
+  scale_color_manual(values = vaccine_colours) +
+  theme(legend.position = "bottom") +
+  ylab("Invasiveness estimated from log odds ratio") +
+  xlab("Invasivess estimate from adjusted type-specific Poisson (cases per carrier per year)") +
+  ggrepel::geom_label_repel(
+    data = (
+      combined_invasiveness_df %>%
+        dplyr::filter((Invasiveness_adjusted_type_specific_poisson < 10**(-4.1) & Invasiveness_REML > 0) |
+                        (Invasiveness_adjusted_type_specific_poisson > 1e-2 & Invasiveness_REML < 2))
+    ),
+    aes(label = Serotype)
+    )
 
 ```

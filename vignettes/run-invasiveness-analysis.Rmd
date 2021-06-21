@@ -34,7 +34,7 @@ The data for analysis is contained within the spreadsheet `s_pneumoniae_netherla
 
 ```{r Read spreadsheet}
 
-s_pneumoniae_netherlands_df <- progressionEstimation::process_input_xlsx("s_pneumoniae_netherlands.xlsx", use_strain = FALSE)
+s_pneumoniae_netherlands_df <- progressionEstimation::process_input_xlsx("s_pneumoniae_sweden.xlsx", use_strain = FALSE)
 
 ```
 

@@ -73,17 +73,17 @@ model {
     // Get location adjustment
     int i = i_values[index];
     if (i > 1) {
-      target += uniform_lpdf( delta_varying[i-1] | -3, 3);
+      delta_varying[i-1] ~ cauchy(0,  2) T[-3, 3];
     }
 
     // calculate prior probability
-    target += uniform_lpdf( log_nu_k[k] | -6, 1);
-    target += uniform_lpdf( log_nu_j[j] | -3, 3);
-    target += uniform_lpdf(rho_ij[index] | 0,1);
+    log_nu_k[k] ~ uniform(-6, 1);
+    log_nu_j[j] ~ uniform(-3, 3);
+    rho_ij[index] ~ beta(1, 1);
 
     // calculate likelihood given data
-    target += binomial_lpmf( c_ij[index] | n_i[index], rho_ij[index] );
-    target += poisson_lpmf( d_ij[index] | delta_i[i]*nu_j[j]*nu_k[k]*rho_ij[index]*N_i[index]*t_i[index] );
+    c_ij[index] ~ binomial(n_i[index], rho_ij[index]);
+    d_ij[index] ~ poisson(delta_i[i]*nu_j[j]*nu_k[k]*rho_ij[index]*N_i[index]*t_i[index]);
 
   }
 }

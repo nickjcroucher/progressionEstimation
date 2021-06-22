@@ -58,12 +58,12 @@ model {
     }
 
     // calculate prior probability
-    target += uniform_lpdf( log_nu | -6, 1);
-    target += uniform_lpdf(rho_ij[index] | 0,1);
+    log_nu ~ uniform(-6, 1);
+    rho_ij[index] ~ beta(1, 1);
 
     // calculate likelihood given data
-    target += binomial_lpmf( c_ij[index] | n_i[index], rho_ij[index] );
-    target += poisson_lpmf( d_ij[index] | delta_i[i]*nu*rho_ij[index]*N_i[index]*t_i[index] );
+    c_ij[index] ~ binomial(n_i[index], rho_ij[index]);
+    d_ij[index] ~ poisson(delta_i[i]*nu*rho_ij[index]*N_i[index]*t_i[index]);
 
   }
 }

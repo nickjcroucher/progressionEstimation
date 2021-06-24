@@ -24,7 +24,7 @@ parameters {
   vector<lower=-6,upper=1.0>[j_max] log_nu_j;
 
   // dataset adjustment
-  vector<lower=-3,upper=3>[i_max-1] delta_varying;
+  vector<lower=-pi()/2, upper=pi()/2>[i_max-1] delta_varying;
 
   // negative binomial overdispersions
   real<lower=0.0,upper=10.0> phi_nb;
@@ -34,7 +34,9 @@ parameters {
 transformed parameters {
 
   // declare transformed parameters
-  vector<lower=1e-3,upper=1e3>[i_max] delta_i;
+  vector[i_max] delta_i;
+  real mu = 0; // position parameter of Cauchy for delta
+  real tau = 2; // scale parameter of Cauchy for delta
 
   // calculate invasiveness on a real scale
   vector<lower=0,upper=10.0>[j_max] nu_j;
@@ -45,7 +47,7 @@ transformed parameters {
   // add constant to delta vector
   delta_i[1] = 1;
   for (i in 2:i_max) {
-    delta_i[i] = pow(10, delta_varying[i-1]);
+    delta_i[i] = pow(10, mu + tau * tan(delta_varying[i-1]));
   }
 
 }
@@ -62,17 +64,17 @@ model {
     // Get location adjustment
     int i = i_values[index];
     if (i > 1) {
-      delta_varying[i-1] ~ cauchy(0, 2) T[-3,3];
+      target += uniform_lpdf(delta_varying[i-1] | -pi()/2, pi()/2);
     }
 
     // calculate prior probability
-    log_nu_j[j] ~ uniform(-6, 1);
-    rho_ij[index] ~ beta(1, 1);
-    phi_nb ~ uniform(0, 10);
+    target += uniform_lpdf( log_nu_j[j] | -6, 1);
+    target += beta_lpdf(rho_ij[index] | 1, 1);
+    target += uniform_lpdf(phi_nb | 0, 10);
 
     // calculate likelihood given data
-    c_ij[index] ~ binomial(n_i[index], rho_ij[index]);
-    d_ij[index] ~ neg_binomial_2(delta_i[i]*nu_j[j]*rho_ij[index]*N_i[index]*t_i[index], phi_nb);
+    target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);
+    target += neg_binomial_2_lpmf(d_ij[index] | delta_i[i]*nu_j[j]*rho_ij[index]*N_i[index]*t_i[index], phi_nb);
 
   }
 }

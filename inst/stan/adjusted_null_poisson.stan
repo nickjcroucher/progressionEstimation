@@ -24,14 +24,16 @@ parameters {
   real<lower=-6,upper=1.0> log_nu;
 
   // dataset adjustment
-  vector<lower=-3,upper=3>[i_max-1] delta_varying;
+  vector<lower=-pi()/2, upper=pi()/2>[i_max-1] delta_varying;
 
 }
 
 transformed parameters {
 
   // declare transformed parameters
-  vector<lower=1e-3,upper=1e3>[i_max] delta_i;
+  vector[i_max] delta_i;
+  real mu = 0; // position parameter of Cauchy for delta
+  real tau = 2; // scale parameter of Cauchy for delta
 
   // calculate invasiveness on a real scale
   real<lower=0,upper=10.0> nu;
@@ -40,7 +42,7 @@ transformed parameters {
   // add constant to delta vector
   delta_i[1] = 1;
   for (i in 2:i_max) {
-    delta_i[i] = pow(10, delta_varying[i-1]);
+    delta_i[i] = pow(10, mu + tau * tan(delta_varying[i-1]));
   }
 
 }
@@ -54,16 +56,16 @@ model {
     // Get location adjustment
     int i = i_values[index];
     if (i > 1) {
-      delta_varying[i-1] ~ cauchy(0, 2) T[-3,3];
+      target += uniform_lpdf(delta_varying[i-1] | -pi()/2, pi()/2);
     }
 
     // calculate prior probability
-    log_nu ~ uniform(-6, 1);
-    rho_ij[index] ~ beta(1, 1);
+    target += uniform_lpdf(log_nu | -6, 1);
+    target += beta_lpdf(rho_ij[index] | 1, 1);
 
     // calculate likelihood given data
-    c_ij[index] ~ binomial(n_i[index], rho_ij[index]);
-    d_ij[index] ~ poisson(delta_i[i]*nu*rho_ij[index]*N_i[index]*t_i[index]);
+    target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);
+    target += poisson_lpmf(d_ij[index] | delta_i[i]*nu*rho_ij[index]*N_i[index]*t_i[index]);
 
   }
 }

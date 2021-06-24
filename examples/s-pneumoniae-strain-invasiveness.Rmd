@@ -1,10 +1,6 @@
 ---
-title: "s-pneumoniae-serotype-invasiveness"
+title: "*S. pneumoniae* strain invasiveness"
 output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{s-pneumoniae-serotype-invasiveness}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r, include = FALSE}
@@ -13,7 +9,6 @@ knitr::opts_chunk$set(
   fig.width = 8,
   comment = "#>"
 )
-options(rmarkdown.html_vignette.check_title = FALSE)
 ```
 
 ```{r setup}
@@ -59,12 +54,12 @@ epi_colors <- c(
 
 ## Description and filtering of the dataset
 
-The dataset used in this analysis is contained in the `S_pneumoniae_infant_serotype` object, which includes data from `r S_pneumoniae_infant_serotype %>% dplyr::select(study) %>% dplyr::n_distinct()` studies on `r S_pneumoniae_infant_serotype %>% dplyr::select(categorisation) %>% dplyr::n_distinct()` serotypes. The distribution of samples between each study can be plotted, if they are ranked by the mean number of carriage and disease isolates:
+The dataset used in this analysis is contained in the `S_pneumoniae_infant_strain` object, which includes data from `r S_pneumoniae_infant_strain %>% dplyr::select(study) %>% dplyr::n_distinct()` studies on `r S_pneumoniae_infant_strain %>% dplyr::select(categorisation) %>% dplyr::n_distinct()` serotypes. The distribution of samples between each study can be plotted, if they are ranked by the mean number of carriage and disease isolates:
 
 ``` {r Plot distribution by study, include = FALSE}
 
 studies_by_size <-
-  S_pneumoniae_infant_serotype %>%
+  S_pneumoniae_infant_strain %>%
     group_by(study) %>%
     dplyr::mutate(total_count = sum(carriage)+sum(disease)) %>%
     dplyr::select(study,total_count) %>%
@@ -73,10 +68,10 @@ studies_by_size <-
     dplyr::select(study) %>%
     dplyr::pull()
 
-S_pneumoniae_infant_serotype %<>%
+S_pneumoniae_infant_strain %<>%
   dplyr::mutate(study = factor(study, levels = studies_by_size))
 
-ggplot(S_pneumoniae_infant_serotype %>%
+ggplot(S_pneumoniae_infant_strain %>%
          tidyr::pivot_longer(c(carriage,disease),
                              names_to = "Sample type",
                              values_to = "count"),
@@ -97,7 +92,7 @@ The total number of observations for each serotype can be similarly plotted:
 ``` {r Plot distribution by serotype, include = FALSE}
 
 serotype_by_count <-
-  S_pneumoniae_infant_serotype %>%
+  S_pneumoniae_infant_strain %>%
     group_by(categorisation) %>%
     dplyr::mutate(total_count = sum(carriage)+sum(disease)) %>%
     dplyr::select(categorisation,total_count) %>%
@@ -106,10 +101,10 @@ serotype_by_count <-
     dplyr::select(categorisation) %>%
     dplyr::pull()
 
-S_pneumoniae_infant_serotype %<>%
+S_pneumoniae_infant_strain %<>%
   dplyr::mutate(categorisation = factor(categorisation, levels = serotype_by_count))
 
-ggplot(S_pneumoniae_infant_serotype %>%
+ggplot(S_pneumoniae_infant_strain %>%
          tidyr::pivot_longer(c(carriage,disease),
                              names_to = "Sample type",
                              values_to = "count"),
@@ -132,30 +127,42 @@ As many of these serotypes are rare, to facilitate model fitting, we exclude any
 
 threshold_count <- 5
 
-filtered_S_pneumoniae_infant_serotype <-
-  S_pneumoniae_infant_serotype %>%
-    dplyr::filter(carriage >= threshold_count | disease >= threshold_count) %>%
-    dplyr::group_by(categorisation) %>%
-    dplyr::mutate(study_count = n()) %>%
-    dplyr::ungroup() %>%
-    dplyr::filter(study_count > threshold_count) %>%
-    dplyr::group_by(study) %>%
-    dplyr::mutate(serotype_count = n()) %>%
-    dplyr::ungroup() %>%
-    dplyr::filter(serotype_count > threshold_count) %>%
-    dplyr::mutate(categorisation = factor(categorisation))
+filtered_S_pneumoniae_infant_strain <-
+  S_pneumoniae_infant_strain %>%
+    dplyr::filter(carriage >= threshold_count | disease >= threshold_count) 
 
-filtered_S_pneumoniae_infant_serotype %<>%
-    dplyr::mutate(study = factor(study, levels = studies_by_size[studies_by_size %in% unique(filtered_S_pneumoniae_infant_serotype$study)]))
+filtered_S_pneumoniae_infant_strain %<>%
+    dplyr::mutate(study = factor(study, levels = studies_by_size[studies_by_size %in% unique(filtered_S_pneumoniae_infant_strain$study)]))
 
-filtered_S_pneumoniae_infant_serotype %<>%
+filtered_S_pneumoniae_infant_strain %<>%
     dplyr::mutate(categorisation = factor(categorisation,
-                                          levels = serotype_by_count[serotype_by_count %in% unique(filtered_S_pneumoniae_infant_serotype$categorisation)]))
+                                          levels = serotype_by_count[serotype_by_count %in% unique(filtered_S_pneumoniae_infant_strain$categorisation)])) %>%
+  dplyr::mutate(strain = factor(strain))
 
+# Generate input for serotype models
 infant_serotype_invasiveness <- 
-  progressionEstimation::process_input_data(filtered_S_pneumoniae_infant_serotype)
+  progressionEstimation::process_input_data(filtered_S_pneumoniae_infant_strain,
+                                            condense = FALSE)
 
-ggplot(filtered_S_pneumoniae_infant_serotype %>%
+# Generate input for strain models
+infant_strain_invasiveness <- 
+  progressionEstimation::process_input_data(filtered_S_pneumoniae_infant_strain,
+                                            subtype = "strain",
+                                            condense = FALSE)
+
+# Generate input for strain and serotype models
+infant_serotype_and_strain_invasiveness <- 
+  progressionEstimation::process_input_data(filtered_S_pneumoniae_infant_strain,
+                                            use_strain = TRUE,
+                                            condense = FALSE)
+
+# Generate input for serotype models
+infant_serotype_strain_combined_invasiveness <- 
+  progressionEstimation::process_input_data(filtered_S_pneumoniae_infant_strain,
+                                            combine_strain = TRUE,
+                                            condense = FALSE)
+
+ggplot(filtered_S_pneumoniae_infant_strain %>%
          tidyr::pivot_longer(c(carriage,disease),
                              names_to = "Sample type",
                              values_to = "count"),
@@ -172,144 +179,191 @@ ggplot(filtered_S_pneumoniae_infant_serotype %>%
 
 ```
 
-This filtered dataset comprises `r S_pneumoniae_infant_serotype %>% dplyr::select(categorisation) %>% dplyr::n_distinct()` serotypes.
+This filtered dataset comprises `r filtered_S_pneumoniae_infant_strain %>% dplyr::select(categorisation) %>% dplyr::n_distinct()` serotypes.
 
 ## Fitting the statistical models
 
-The null model, in which each serotyoe $j$ causes invasive disease at the same rate in each location $i$, can be fitted using a Poisson distribution of disease isolates (**null Poisson** model):
+An adjusted type-specific Poisson model can be applied to the data using only classification by serotype (**adjusted serotype-specific Poisson** model):
 
-$$d_{i,j} \sim Pois(\nu\rho_{i,j}N_{i}t_{i})$$
+$$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{j}\rho_{i,j,k}N_{i}t_{i})$$
 
-``` {r Null Poisson model fit, include = FALSE}
+``` {r Adjusted serotype-specific Poisson model fit, include = FALSE}
 
 n_chains <- 2
 n_iter <- 2.5e4
 n_core <- 2
 
-null_poisson_fit <- 
-  progressionEstimation::fit_progression_rate_model(infant_serotype_invasiveness,
-                                                    type_specific = FALSE,
-                                                    location_adjustment = FALSE,
-                                                    stat_model = "poisson",
-                                                    num_chains = n_chains,
-                                                    num_iter = n_iter,
-                                                    num_cores = n_core)
-
-```
-
-The null model can be fitted using a negative binomial distribution of disease isolates (**null negative binomial** model):
-
-$$d_{i,j} \sim NegBin(\nu\rho_{i,j}N_{i}t_{i},\phi)$$
-
-``` {r Null negative binomial model fit, include = FALSE}
-
-null_negbin_fit <- 
-  progressionEstimation::fit_progression_rate_model(infant_serotype_invasiveness,
-                                                    type_specific = FALSE,
-                                                    location_adjustment = FALSE,
-                                                    stat_model = "negbin",
-                                                    num_chains = n_chains,
-                                                    num_iter = n_iter,
-                                                    num_cores = n_core)
-
-```
-
-The Poisson model can be modified by allowing each serotype to have its own invasiveness, $\nu_{j}$ (**type-specific Poisson** model):
-
-$$d_{i,j} \sim Pois(\nu_{j}\rho_{i,j}N_{i}t_{i})$$
-``` {r Type-specific Poisson model fit, include = FALSE}
-
-type_specific_poisson_fit <- 
-  progressionEstimation::fit_progression_rate_model(infant_serotype_invasiveness,
-                                                    type_specific = TRUE,
-                                                    location_adjustment = FALSE,
-                                                    stat_model = "poisson",
-                                                    num_chains = n_chains,
-                                                    num_iter = n_iter,
-                                                    num_cores = n_core)
-
-```
-
-The negative binomial model can be modified in the same way (**type-specific negative binomial** model):
-
-$$d_{i,j} \sim NegBin(\nu_{j}\rho_{i,j}N_{i}t_{i},\phi)$$
-
-``` {r Type-specific negative binomial model fit, include = FALSE}
-
-type_specific_negbin_fit <- 
-  progressionEstimation::fit_progression_rate_model(infant_serotype_invasiveness,
-                                                    type_specific = TRUE,
-                                                    location_adjustment = FALSE,
-                                                    stat_model = "negbin",
-                                                    num_chains = n_chains,
-                                                    num_iter = n_iter,
-                                                    num_cores = n_core)
-
-```
-
-Alternatively, the Poisson model can be modified by allowing invasiveness to be adjusted between locations by a scale factor, $\delta_{i}$. In this model, all serotypes still have the same invasiveness (**adjusted Poisson** model):
-
-$$d_{i,j} \sim Poisson(\delta_{i}\nu\rho_{i,j}N_{i}t_{i})$$
-
-``` {r Adjusted Poisson model fit, include = FALSE}
-
-adjusted_poisson_fit <- 
-  progressionEstimation::fit_progression_rate_model(infant_serotype_invasiveness,
-                                                    type_specific = FALSE,
-                                                    location_adjustment = TRUE,
-                                                    stat_model = "poisson",
-                                                    num_chains = n_chains,
-                                                    num_iter = n_iter,
-                                                    num_cores = n_core)
-
-```
-
-The negative binomial model can again be modified in the same way (**adjusted negative binomial** model):
-
-$$d_{i,j} \sim NegBin(\delta_{i}\nu\rho_{i,j}N_{i}t_{i},\phi)$$
-
-``` {r Adjusted negative binomial model fit, include = FALSE}
-
-adjusted_negbin_fit <- 
-  progressionEstimation::fit_progression_rate_model(infant_serotype_invasiveness,
-                                                    type_specific = FALSE,
-                                                    location_adjustment = TRUE,
-                                                    stat_model = "negbin",
-                                                    num_chains = n_chains,
-                                                    num_iter = n_iter,
-                                                    num_cores = n_core)
-
-```
-
-
-Both modifications can be combined in adjusted type-specific model fits. This can be used with the Poisson model of disease isolate counts (**adjusted type-specific Poisson** model):
-
-$$d_{i,j} \sim Poisson(\delta_{i}\nu_{j}\rho_{i,j}N_{i}t_{i})$$
-
-``` {r Adjusted type-specific Poisson model fit, include = FALSE}
-
-adjusted_type_specific_poisson_fit <- 
+adjusted_serotype_specific_poisson_fit <- 
   progressionEstimation::fit_progression_rate_model(infant_serotype_invasiveness,
                                                     type_specific = TRUE,
                                                     location_adjustment = TRUE,
                                                     stat_model = "poisson",
+                                                    model_description = "serotype_specific_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
 
 ```
 
-This can also be used with the negative binomial model (**adjusted type-specific negative binomial** model):
+We can alternatively fit a negative binomial version of the same model:
 
-$$d_{i,j} \sim NegBin(\delta_{i}\nu_{j}\rho_{i,j}N_{i}t_{i},\phi)$$
+$$d_{i,j,k} \sim NegBin(\delta_{i}\nu_{j}\rho_{i,j,k}N_{i}t_{i})$$
 
-``` {r Adjusted type-specific negative binomial model fit, include = FALSE}
+``` {r Adjusted serotype-specific negative binomial model fit, include = FALSE}
 
-adjusted_type_specific_negbin_fit <- 
+adjusted_serotype_specific_negbin_fit <- 
   progressionEstimation::fit_progression_rate_model(infant_serotype_invasiveness,
                                                     type_specific = TRUE,
                                                     location_adjustment = TRUE,
                                                     stat_model = "negbin",
+                                                    model_description = "serotype_specific_negbin",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+```
+
+
+An adjusted type-specific Poisson model can alternatively be applied to the data using only classification by strain (**adjusted strain-specific Poisson** model):
+
+$$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
+
+``` {r Adjusted strain-specific Poisson model fit, include = FALSE}
+
+adjusted_strain_specific_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(infant_strain_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    stat_model = "poisson",
+                                                    model_description = "strain_specific_poisson",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+```
+
+We can also fit a negative binomial equivalent (**adjusted strain-specific negative binomial** model):
+
+$$d_{i,j,k} \sim NegBin(\delta_{i}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
+``` {r Adjusted strain-specific negative binomial model fit, include = FALSE}
+
+adjusted_strain_specific_negbin_fit <- 
+  progressionEstimation::fit_progression_rate_model(infant_strain_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    stat_model = "negbin",
+                                                    model_description = "strain_specific_negbin",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+```
+
+Models can also combine serotype and strain information, with invasiveness primarily determined by serotype, and modified by strain:
+
+$$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
+
+``` {r Adjusted serotype-specific strain-modified Poisson model fit, include = FALSE}
+
+adjusted_serotype_specific_strain_modified_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(infant_serotype_and_strain_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    strain_as_secondary_type = TRUE,
+                                                    stat_model = "poisson",
+                                                    model_description = "serotype_specific_strain_modified_poisson",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+```
+
+This can also be applied using a negative binomial distribution:
+
+$$d_{i,j,k} \sim NegBin(\delta_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
+
+``` {r Adjusted serotype-specific strain-modified negative binomial model fit, include = FALSE}
+
+adjusted_strain_specific_strain_modified_negbin_fit <- 
+  progressionEstimation::fit_progression_rate_model(infant_serotype_and_strain_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    strain_as_secondary_type = TRUE,
+                                                    stat_model = "negbin",
+                                                    model_description = "serotype_specific_strain_modified_negbin",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+```
+
+Models can alternative have invasiveness primarily determined by strain, and modified by serotype:
+
+$$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
+
+``` {r Adjusted serotype-specific strain-modified Poisson model fit, include = FALSE}
+
+adjusted_strain_specific_serotype_modified_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(infant_serotype_and_strain_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    strain_as_primary_type = TRUE,
+                                                    stat_model = "poisson",
+                                                    model_description = "strain_specific_serotype_modified_poisson",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+```
+
+This model can also be applied using a negative binomial model:
+
+$$d_{i,j,k} \sim NegBin(\delta_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
+
+``` {r Adjusted serotype-specific strain-modified Poisson model fit, include = FALSE}
+
+adjusted_strain_specific_serotype_modified_negbin_fit <- 
+  progressionEstimation::fit_progression_rate_model(infant_serotype_and_strain_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    strain_as_primary_type = TRUE,
+                                                    stat_model = "negbin",
+                                                    model_description = "strain_specific_serotype_modified_negbin",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+```
+
+The final model structure assigns a different invasiveness to each strain-serotype combination:
+
+$$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{j,k}\rho_{i,j,k}N_{i}t_{i})$$
+
+``` {r Adjusted serotype-specific strain-modified Poisson model fit, include = FALSE}
+
+adjusted_strain_and_serotype_specific_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(infant_serotype_strain_combined_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    stat_model = "poisson",
+                                                    model_description = "strain_and_serotype_specific_poisson",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+```
+
+A version using the negative binomial distribution can also be fitted:
+
+$$d_{i,j,k} \sim NegBin(\delta_{i}\nu_{j,k}\rho_{i,j,k}N_{i}t_{i})$$
+``` {r Adjusted serotype-specific strain-modified negative binomial model fit, include = FALSE}
+
+adjusted_strain_and_serotype_specific_negbin_fit <- 
+  progressionEstimation::fit_progression_rate_model(infant_serotype_strain_combined_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    stat_model = "negbin",
+                                                    model_description = "strain_and_serotype_specific_negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
@@ -320,18 +374,20 @@ To check the models have fitted correctly, we can plot the $\hat{R}$ values acro
 
 ``` {r Plot r hat values}
 
-fit_list <- list(null_poisson_fit,
-                 null_negbin_fit,
-                 type_specific_poisson_fit,
-                 type_specific_negbin_fit,
-                 adjusted_poisson_fit,
-                 adjusted_negbin_fit,
-                 adjusted_type_specific_poisson_fit,
-                 adjusted_type_specific_negbin_fit)
+fit_list <- list(adjusted_serotype_specific_poisson_fit,
+                                  adjusted_serotype_specific_negbin_fit,
+                                  adjusted_strain_specific_poisson_fit,
+                                  adjusted_strain_specific_negbin_fit,
+                                  adjusted_serotype_specific_strain_modified_poisson_fit,
+                                  adjusted_strain_specific_strain_modified_negbin_fit,
+                                  adjusted_strain_specific_serotype_modified_poisson_fit,
+                                  adjusted_strain_specific_serotype_modified_negbin_fit,
+                                  adjusted_strain_and_serotype_specific_poisson_fit,
+                                  adjusted_strain_and_serotype_specific_negbin_fit)
 
 rhat_plots <- lapply(fit_list, plot, plotfun = "rhat", binwidth = 0.00005)
 
-cowplot::plot_grid(plotlist = rhat_plots, ncol = 4, nrow = 2, labels = "AUTO")
+cowplot::plot_grid(plotlist = rhat_plots, ncol = 5, nrow = 2, labels = "AUTO")
 
 ```
 
@@ -443,7 +499,7 @@ The model likelihoods can be compared using leave-one-out cross-validation:
 ``` {r Comparison with LOO-CV using full log likelihood, include = FALSE}
 
 loo_comparison <- progressionEstimation::compare_model_fits_with_loo(fit_list,
-                                                                     use_moments = TRUE,
+                                                                     use_moments = FALSE,
                                                                      num_threads = n_core)
 
 loo_comparison %>%
@@ -458,7 +514,7 @@ The Pareto distribution k values are too high for robust estimates of the ELPD. 
 
 disease_loo_comparison <- progressionEstimation::compare_model_fits_with_loo(fit_list,
                                                                      log_lik_param = "disease_log_lik",
-                                                                     use_moments = TRUE,
+                                                                     use_moments = FALSE,
                                                                      num_threads = n_core)
 
 disease_loo_comparison %>%
@@ -735,3 +791,4 @@ ggplot(combined_invasiveness_df,
     )
 
 ```
+.

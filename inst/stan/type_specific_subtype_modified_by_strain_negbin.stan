@@ -69,12 +69,12 @@ model {
     // calculate prior probability
     target += uniform_lpdf( log_nu_j[j] | -6, 1);
     target += uniform_lpdf( log_nu_k[k] | -3, 3);
-    target += uniform_lpdf(rho_ij[index] | 0,1);
-    target += uniform_lpdf(phi_nb | 0,10);
+    target += beta_lpdf(rho_ij[index] | 1, 1);
+    target += uniform_lpdf(phi_nb | 0, 10);
 
     // calculate likelihood given data
-    target += binomial_lpmf( c_ij[index] | n_i[index], rho_ij[index] );
-    target += neg_binomial_2_lpmf( d_ij[index] | nu_j[j]*nu_k[k]*rho_ij[index]*N_i[index]*t_i[index], phi_nb );
+    target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);
+    target += neg_binomial_2_lpmf(d_ij[index] | nu_j[j]*nu_k[k]*rho_ij[index]*N_i[index]*t_i[index], phi_nb);
 
   }
 }

@@ -29,14 +29,16 @@ parameters {
   vector<lower=-3.0,upper=3.0>[k_max] log_nu_k;
 
   // dataset adjustment
-  vector<lower=-3,upper=3>[i_max-1] delta_varying;
+  vector<lower=-pi()/2, upper=pi()/2>[i_max-1] delta_varying;
 
 }
 
 transformed parameters {
 
   // declare transformed parameters
-  vector<lower=1e-3,upper=1e3>[i_max] delta_i;
+  vector[i_max] delta_i;
+  real mu = 0; // position parameter of Cauchy for delta
+  real tau = 2; // scale parameter of Cauchy for delta
   vector<lower=0,upper=10.0>[j_max] nu_j;
   vector<lower=0.001,upper=1000.0>[k_max] nu_k;
 
@@ -53,7 +55,7 @@ transformed parameters {
   // add constant to delta vector
   delta_i[1] = 1;
   for (i in 2:i_max) {
-    delta_i[i] = pow(10, delta_varying[i-1]);
+    delta_i[i] = pow(10, mu + tau * tan(delta_varying[i-1]));
   }
 
 }
@@ -73,17 +75,17 @@ model {
     // Get location adjustment
     int i = i_values[index];
     if (i > 1) {
-      target += uniform_lpdf( delta_varying[i-1] | -3, 3);
+      target += uniform_lpdf(delta_varying[i-1] | -pi()/2, pi()/2);
     }
 
     // calculate prior probability
     target += uniform_lpdf( log_nu_j[j] | -6, 1);
     target += uniform_lpdf( log_nu_k[k] | -3, 3);
-    target += uniform_lpdf(rho_ij[index] | 0,1);
+    target += beta_lpdf(rho_ij[index] | 1, 1);
 
     // calculate likelihood given data
-    target += binomial_lpmf( c_ij[index] | n_i[index], rho_ij[index] );
-    target += poisson_lpmf( d_ij[index] | delta_i[i]*nu_j[j]*nu_k[k]*rho_ij[index]*N_i[index]*t_i[index] );
+    target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);
+    target += poisson_lpmf(d_ij[index] | delta_i[i]*nu_j[j]*nu_k[k]*rho_ij[index]*N_i[index]*t_i[index]);
 
   }
 }

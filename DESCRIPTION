@@ -37,6 +37,7 @@ Suggests:
     knitr,
     rmarkdown,
     metafor (>= 3.0)
+    ggpubr (>= 0.4)
 VignetteBuilder: knitr
 RoxygenNote: 7.1.1
 Biarch: true

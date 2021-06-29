@@ -372,25 +372,30 @@ process_progression_rate_model_output<-function(model_output,
 #'
 #' @param model_output_df Data frame include input data and model fit output
 #' @param n_label Number of top-ranked observations to label
+#' @param label_col Column to use for labels
 #' @param legend Boolean specifying whether a legend should be included in the plot
 #' @param just_legend Whether to only return the legend
 #'
 #' @return ggplot2 plot
 #' @export
 #'
-plot_case_carrier_predictions <- function(model_output_df, n_label = 3, legend = TRUE, just_legend = FALSE) {
+plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_col = "categorisation", legend = TRUE, just_legend = FALSE) {
+
   if (!("carriage_prediction" %in% colnames(model_output_df))) {
     stop("Need to include model output in data frame for plotting")
   }
-  carriage_labels <-
-    model_output_df %>%
-    dplyr::slice_max(carriage_prediction, n = n_label) %>%
-    dplyr::select(categorisation, carriage, carriage_prediction)
 
-  disease_labels <-
-    model_output_df %>%
-    dplyr::slice_max(disease_prediction, n = n_label) %>%
-    dplyr::select(categorisation, disease, disease_prediction)
+  if (!is.null(label_col)) {
+    carriage_labels <-
+      model_output_df %>%
+      dplyr::slice_max(carriage_prediction, n = n_label) %>%
+      dplyr::select(!!! dplyr::syms(label_col), carriage, carriage_prediction)
+
+    disease_labels <-
+      model_output_df %>%
+      dplyr::slice_max(disease_prediction, n = n_label) %>%
+      dplyr::select(!!! dplyr::syms(label_col), disease, disease_prediction)
+  }
 
   carriage_plot <-
     ggplot(model_output_df,
@@ -401,14 +406,19 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, legend =
     geom_abline(slope = 1, intercept = 0, lty = 2, colour = "coral") +
     ylab("Number of carriage isolates predicted by model") +
     xlab("Number of observed carriage isolates") +
-    theme_bw() +
-    ggrepel::geom_text_repel(data = carriage_labels,
-                             aes(x = carriage,
-                                 y = carriage_prediction,
-                                 label = categorisation),
-                             alpha = 0.9,
-                             force = 50,
-                             inherit.aes = FALSE)
+    theme_bw()
+
+  if (!is.null(label_col)) {
+    carriage_plot <-
+      carriage_plot +
+      ggrepel::geom_text_repel(data = carriage_labels,
+                               aes(x = carriage,
+                                   y = carriage_prediction,
+                                   label = get(label_col)),
+                               alpha = 0.9,
+                               force = 50,
+                               inherit.aes = FALSE)
+  }
 
   disease_plot <-
     ggplot(model_output_df,
@@ -419,14 +429,20 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, legend =
     geom_abline(slope = 1, intercept = 0, lty = 2, colour = "coral") +
     ylab("Number of disease isolates predicted by model") +
     xlab("Number of observed disease isolates") +
-    theme_bw() +
-    ggrepel::geom_text_repel(data = disease_labels,
-                             aes(x = disease,
-                                 y = disease_prediction,
-                                 label = categorisation),
-                             alpha = 0.9,
-                             force = 50,
-                             inherit.aes = FALSE)
+    theme_bw()
+
+  if (!is.null(label_col)) {
+    disease_plot <-
+      disease_plot +
+      ggrepel::geom_text_repel(data = disease_labels,
+                               aes(x = disease,
+                                   y = disease_prediction,
+                                   label = get(label_col)),
+                               alpha = 0.9,
+                               force = 50,
+                               inherit.aes = FALSE)
+  }
+
   # Add in function for colouring by location if appropriate
   if (model_output_df$study %>% dplyr::n_distinct() > 1) {
     carriage_plot <- carriage_plot +
@@ -471,12 +487,13 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, legend =
 #' @param type_name Name of categorisation scheme for x axis label
 #' @param colour_col Name of the column used for colour scheme
 #' @param colour_palette Named vector to be used for colour scheme
+#' @param use_sample_size Whether to change point style based on sample size
 #'
 #' @return
 #' @export
 #'
 plot_progression_rates <- function(model_output_df, subtype = "categorisation", unit_time = "unit time", type_name = "categorisation",
-                                   colour_col = NULL, colour_palette = NULL) {
+                                   colour_col = NULL, colour_palette = NULL, use_sample_size = FALSE) {
   if (!("carriage_prediction" %in% colnames(model_output_df))) {
     stop("Need to include model output in data frame for plotting")
   }
@@ -489,27 +506,56 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
     y_label_text = paste0("Progression rate contribution (disease per carrier per ",unit_time,")")
   }
 
+  if (use_sample_size) {
+    model_output_df %<>%
+      dplyr::group_by(!!! dplyr::syms(subtype)) %>%
+      dplyr::mutate(num_observations = sum(carriage+disease)) %>%
+      dplyr::ungroup()
+  }
+
   model_output_df %<>%
     dplyr::group_by(!!! dplyr::syms(subtype)) %>%
     dplyr::slice_head(n=1) %>%
     dplyr::ungroup()
 
   if (is.null(colour_col)) {
-    base_graph <-
-      ggplot(model_output_df,
-             aes(x = get(subtype),
-                 y = get(progression_rate_values[1]),
-                 ymin = get(progression_rate_values[2]),
-                 ymax = get(progression_rate_values[3])))
+    if (use_sample_size) {
+      base_graph <-
+        ggplot(model_output_df,
+               aes(x = get(subtype),
+                   y = get(progression_rate_values[1]),
+                   ymin = get(progression_rate_values[2]),
+                   ymax = get(progression_rate_values[3]),
+                   shape = num_observations))
+    } else {
+      base_graph <-
+        ggplot(model_output_df,
+               aes(x = get(subtype),
+                   y = get(progression_rate_values[1]),
+                   ymin = get(progression_rate_values[2]),
+                   ymax = get(progression_rate_values[3])))
+    }
   } else {
-    base_graph <-
-      ggplot(model_output_df,
-             aes(x = get(subtype),
-                 y = get(progression_rate_values[1]),
-                 ymin = get(progression_rate_values[2]),
-                 ymax = get(progression_rate_values[3]),
-                 colour = get(colour_col),
-                 fill = get(colour_col)))
+    if (use_sample_size) {
+      base_graph <-
+        ggplot(model_output_df,
+               aes(x = get(subtype),
+                   y = get(progression_rate_values[1]),
+                   ymin = get(progression_rate_values[2]),
+                   ymax = get(progression_rate_values[3]),
+                   colour = get(colour_col),
+                   fill = get(colour_col),
+                   shape = num_observations))
+    } else {
+      base_graph <-
+        ggplot(model_output_df,
+               aes(x = get(subtype),
+                   y = get(progression_rate_values[1]),
+                   ymin = get(progression_rate_values[2]),
+                   ymax = get(progression_rate_values[3]),
+                   colour = get(colour_col),
+                   fill = get(colour_col)))
+    }
   }
 
   point_graph <-
@@ -536,6 +582,12 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
   } else {
     point_graph <- point_graph +
       theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+  }
+
+  if (use_sample_size) {
+    point_graph <- point_graph +
+      scale_shape_binned(name = "Number of\nisolates",
+                         breaks = c(5,10,25,50,100))
   }
 
   return(point_graph)

@@ -21,7 +21,7 @@ require(loo)
 require(cowplot)
 require(ggrepel)
 require(xlsx)
-
+require(gtools)
 # Load stan package
 library(progressionEstimation)
 pkgbuild::compile_dll()
@@ -203,6 +203,11 @@ adjusted_serotype_specific_poisson_fit <-
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
 
+adjusted_serotype_specific_poisson_output_df <-
+  progressionEstimation::process_progression_rate_model_output(adjusted_serotype_specific_poisson_fit,
+                                                               filtered_S_pneumoniae_infant_strain,
+                                                               condense = FALSE)
+
 ```
 
 We can alternatively fit a negative binomial version of the same model:
@@ -220,6 +225,11 @@ adjusted_serotype_specific_negbin_fit <-
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
+
+adjusted_serotype_specific_negbin_output_df <-
+  progressionEstimation::process_progression_rate_model_output(adjusted_serotype_specific_negbin_fit,
+                                                               filtered_S_pneumoniae_infant_strain,
+                                                               condense = FALSE)
 
 ```
 
@@ -240,6 +250,12 @@ adjusted_strain_specific_poisson_fit <-
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
 
+adjusted_strain_specific_poisson_output_df <-
+  progressionEstimation::process_progression_rate_model_output(adjusted_strain_specific_poisson_fit,
+                                                               filtered_S_pneumoniae_infant_strain,
+                                                               subtype = "strain",
+                                                               condense = FALSE)
+
 ```
 
 We can also fit a negative binomial equivalent (**adjusted strain-specific negative binomial** model):
@@ -256,6 +272,12 @@ adjusted_strain_specific_negbin_fit <-
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
+
+adjusted_strain_specific_negbin_output_df <-
+  progressionEstimation::process_progression_rate_model_output(adjusted_strain_specific_negbin_fit,
+                                                               filtered_S_pneumoniae_infant_strain,
+                                                               subtype = "strain",
+                                                               condense = FALSE)
 
 ```
 
@@ -276,6 +298,12 @@ adjusted_serotype_specific_strain_modified_poisson_fit <-
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
 
+adjusted_serotype_specific_strain_modified_poisson_output_df <-
+  progressionEstimation::process_progression_rate_model_output(adjusted_serotype_specific_strain_modified_poisson_fit,
+                                                               filtered_S_pneumoniae_infant_strain,
+                                                               strain_as_secondary_type = TRUE,
+                                                               condense = FALSE)
+
 ```
 
 This can also be applied using a negative binomial distribution:
@@ -294,6 +322,12 @@ adjusted_strain_specific_strain_modified_negbin_fit <-
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
+
+adjusted_serotype_specific_strain_modified_negbin_output_df <-
+  progressionEstimation::process_progression_rate_model_output(adjusted_strain_specific_strain_modified_negbin_fit,
+                                                               filtered_S_pneumoniae_infant_strain,
+                                                               strain_as_secondary_type = TRUE,
+                                                               condense = FALSE)
 
 ```
 
@@ -314,6 +348,12 @@ adjusted_strain_specific_serotype_modified_poisson_fit <-
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
 
+adjusted_strain_specific_serotype_modified_poisson_output_df <-
+  progressionEstimation::process_progression_rate_model_output(adjusted_strain_specific_serotype_modified_poisson_fit,
+                                                               filtered_S_pneumoniae_infant_strain,
+                                                               strain_as_primary_type = TRUE,
+                                                               condense = FALSE)
+
 ```
 
 This model can also be applied using a negative binomial model:
@@ -333,6 +373,12 @@ adjusted_strain_specific_serotype_modified_negbin_fit <-
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
 
+adjusted_strain_specific_serotype_modified_negbin_output_df <-
+  progressionEstimation::process_progression_rate_model_output(adjusted_strain_specific_serotype_modified_negbin_fit,
+                                                               filtered_S_pneumoniae_infant_strain,
+                                                               strain_as_primary_type = TRUE,
+                                                               condense = FALSE)
+
 ```
 
 The final model structure assigns a different invasiveness to each strain-serotype combination:
@@ -351,6 +397,12 @@ adjusted_strain_and_serotype_specific_poisson_fit <-
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
 
+adjusted_strain_and_serotype_specific_poisson_output_df <-
+  progressionEstimation::process_progression_rate_model_output(adjusted_strain_and_serotype_specific_poisson_fit,
+                                                               filtered_S_pneumoniae_infant_strain,
+                                                               combined_strain_subtype = TRUE,
+                                                               condense = FALSE)
+
 ```
 
 A version using the negative binomial distribution can also be fitted:
@@ -367,6 +419,12 @@ adjusted_strain_and_serotype_specific_negbin_fit <-
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
+
+adjusted_strain_and_serotype_specific_negbin_output_df <-
+  progressionEstimation::process_progression_rate_model_output(adjusted_strain_and_serotype_specific_negbin_fit,
+                                                               filtered_S_pneumoniae_infant_strain,
+                                                               combined_strain_subtype = TRUE,
+                                                               condense = FALSE)
 
 ```
 
@@ -385,9 +443,22 @@ fit_list <- list(adjusted_serotype_specific_poisson_fit,
                                   adjusted_strain_and_serotype_specific_poisson_fit,
                                   adjusted_strain_and_serotype_specific_negbin_fit)
 
-rhat_plots <- lapply(fit_list, plot, plotfun = "rhat", binwidth = 0.00005)
+rhat_plot <- function(fit) {
+  rhat_plot <- plot(fit, plotfun = "rhat", binwidth = 0.00005)
+  rhat_plot <- rhat_plot + theme(axis.text.x = element_text(angle = 90))
+}
 
-cowplot::plot_grid(plotlist = rhat_plots, ncol = 5, nrow = 2, labels = "AUTO")
+rhat_plots <- lapply(fit_list, rhat_plot)
+
+(strain_and_serotype_rhat_plots <-
+  cowplot::plot_grid(plotlist = rhat_plots, ncol = 5, nrow = 2, labels = "AUTO")
+)
+
+ggsave(strain_and_serotype_rhat_plots,
+       file = "strain_and_serotype_rhat_plots.png",
+       width = 11,
+       height = 7
+)
 
 ```
 
@@ -397,13 +468,22 @@ Convergence can also be checked using trace plots of the log likelihood values:
 
 plot_lp <- function(fit) {
   pl <- rstan::traceplot(fit, pars = "lp__")
-  no_leg_pl <- pl + theme(legend.position = "none")
+  no_leg_pl <- pl + theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 90))
   return(no_leg_pl)
 }
 
 trace_plots <- lapply(fit_list, plot_lp)
 
-cowplot::plot_grid(plotlist = trace_plots, ncol = 4, nrow = 2, labels = "AUTO")
+(strain_and_serotype_trace_plots <-
+  cowplot::plot_grid(plotlist = trace_plots, ncol = 5, nrow = 2, labels = "AUTO")
+)
+
+ggsave(strain_and_serotype_trace_plots,
+       file = "strain_and_serotype_trace_plots.png",
+       width = 11,
+       height = 7
+)
 
 ```
 
@@ -413,15 +493,41 @@ For each model, the output can be processed, and the observations plotted agains
 
 ``` {r Process model outputs and plot predictions, fig.height = 18}
 
-model_outputs <- lapply(fit_list,
-                        progressionEstimation::process_progression_rate_model_output,
-                        filtered_S_pneumoniae_infant_serotype)
+model_outputs <- list(
+  adjusted_serotype_specific_poisson_output_df,
+  adjusted_serotype_specific_negbin_output_df,
+  adjusted_strain_specific_poisson_output_df,
+  adjusted_strain_specific_negbin_output_df,
+  adjusted_serotype_specific_strain_modified_poisson_output_df,
+  adjusted_serotype_specific_strain_modified_negbin_output_df,
+  adjusted_strain_specific_serotype_modified_poisson_output_df,
+  adjusted_strain_specific_serotype_modified_negbin_output_df,
+  adjusted_strain_and_serotype_specific_poisson_output_df,
+  adjusted_strain_and_serotype_specific_negbin_output_df
+)
 
-prediction_plots <- lapply(model_outputs,
-                           progressionEstimation::plot_case_carrier_predictions,
-                           legend = FALSE)
+label_list <- list(
+  "categorisation",
+  "categorisation",
+  "categorisation",
+  "categorisation",
+  "categorisation",
+  "categorisation",
+  "categorisation",
+  "categorisation",
+  "combined",
+  "combined"
+)
 
-no_leg_plot <- cowplot::plot_grid(plotlist = prediction_plots, ncol = 1, nrow = 8, labels = "AUTO")
+prediction_plots <- list()
+for (i in 1:length(model_outputs)) {
+  prediction_plots[[i]] <- progressionEstimation::plot_case_carrier_predictions(
+                                                       model_outputs[[i]],
+                                                       label_col = label_list[[i]],
+                                                       legend = FALSE)
+}
+
+no_leg_plot <- cowplot::plot_grid(plotlist = prediction_plots, ncol = 1, nrow = 10, labels = "AUTO")
 
 prediction_plot_legend <- progressionEstimation::plot_case_carrier_predictions(model_outputs[[1]], just_legend = TRUE)
 
@@ -439,14 +545,16 @@ obs_pred_df <-
   tidyr::pivot_longer(c(carriage_rmse,disease_rmse), names_to = "Observation", values_to = "RMSE") %>%
   dplyr::mutate(model_name = factor(model_name,
                                     levels = c(
-                                      "null_poisson",
-                                      "null_negbin",
-                                      "type_specific_poisson",
-                                      "type_specific_negbin",
-                                      "adjusted_null_poisson",
-                                      "adjusted_null_negbin",
-                                      "adjusted_type_specific_poisson",
-                                      "adjusted_type_specific_negbin"
+                                      "serotype_specific_poisson",
+                                      "serotype_specific_negbin",
+                                      "strain_specific_poisson",
+                                      "strain_specific_negbin",
+                                      "serotype_specific_strain_modified_poisson",
+                                      "serotype_specific_strain_modified_negbin",
+                                      "strain_specific_serotype_modified_poisson",
+                                      "strain_specific_serotype_modified_negbin",
+                                      "strain_and_serotype_specific_poisson",
+                                      "strain_and_serotype_specific_negbin"
                                       )
                                     )
                 ) %>%
@@ -456,18 +564,26 @@ obs_pred_df <-
                   )
                 )
 
-ggplot(obs_pred_df, aes(x = model_name, y = RMSE)) +
-  #geom_boxplot(outlier.shape = NA) +
-  geom_point(position = position_jitter(width = 0.25),
-             alpha = 0.25,
-             cex = 0.75,
-             colour = "blue",
-             pch = 4) +
-  geom_violin(fill = NA) +
-  scale_y_continuous(trans="log10") +
-  theme_bw() +
-  facet_grid(Observation ~ .) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+(strain_and_serotype_rmse_plot <-
+  ggplot(obs_pred_df, aes(x = model_name, y = RMSE)) +
+    geom_point(position = position_jitter(width = 0.25),
+               alpha = 0.25,
+               cex = 0.75,
+               colour = "blue",
+               pch = 4) +
+    geom_violin(fill = NA) +
+    scale_y_continuous(trans="log10") +
+    xlab("Model name") +
+    theme_bw() +
+    facet_grid(Observation ~ .) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+)
+
+ggsave(strain_and_serotype_rmse_plot,
+       file = "strain_and_serotype_rmse_plot.png",
+       width = 7,
+       height = 7
+)
 
 ```
 
@@ -475,20 +591,29 @@ The fits of the negative binomial can be evaluated through plotting the estimate
 
 ``` {r Plot precision parameters for negative binomial models, fig.width = 6}
 
-ggplot(obs_pred_df %>%
-        dplyr::filter(!is.na(phi)) %>%
-        dplyr::group_by(model_name) %>%
-        dplyr::slice(1) %>%
-        dplyr::ungroup(),
-      aes(x = model_name,
-          y = phi,
-          ymin = phi_lower,
-          ymax = phi_upper)) +
-  geom_point() +
-  geom_errorbar(width = 0.25) +
-  theme_bw() +
-  ylab(expression(phi)) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+(strain_and_serotype_precision_parameters <-
+  ggplot(obs_pred_df %>%
+          dplyr::filter(!is.na(phi)) %>%
+          dplyr::group_by(model_name) %>%
+          dplyr::slice(1) %>%
+          dplyr::ungroup(),
+        aes(x = model_name,
+            y = phi,
+            ymin = phi_lower,
+            ymax = phi_upper)) +
+    geom_point() +
+    geom_errorbar(width = 0.25) +
+    theme_bw() +
+    ylab(expression(phi)) +
+    xlab("Model name") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+)
+
+ggsave(strain_and_serotype_precision_parameters,
+       file = "strain_and_serotype_precision_plot.png",
+       width = 7,
+       height = 7
+)
 
 ```
 
@@ -544,34 +669,48 @@ The best-fitting model can then be applied to the overall dataset.
 
 ``` {r Plot invasiveness estimates from best-fitting model}
 
-full_infant_serotype_invasiveness <- 
-  progressionEstimation::process_input_data(S_pneumoniae_infant_serotype)
+full_infant_serotype_and_strain_invasiveness <- 
+  progressionEstimation::process_input_data(S_pneumoniae_infant_strain,
+                                            combine_strain = TRUE,
+                                            condense = FALSE)
 
-full_adjusted_type_specific_poisson_fit <- 
-  progressionEstimation::fit_progression_rate_model(full_infant_serotype_invasiveness,
+full_adjusted_strain_and_serotype_specific_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(full_infant_serotype_and_strain_invasiveness,
                                                     type_specific = TRUE,
                                                     location_adjustment = TRUE,
                                                     stat_model = "poisson",
+                                                    model_description = "strain_and_serotype_specific_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
 
-rhat_plot <- plot(full_adjusted_type_specific_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
+rhat_plot <- plot(full_adjusted_strain_and_serotype_specific_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
 
-trace_plot <- rstan::traceplot(full_adjusted_type_specific_poisson_fit, pars = "lp__")
+trace_plot <- rstan::traceplot(full_adjusted_strain_and_serotype_specific_poisson_fit, pars = "lp__")
 
-cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
-                   nrow = 1,
-                   ncol = 2,
-                   labels = "AUTO")
+(full_strain_and_serotype_validation_plot <-
+  cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
+                     nrow = 1,
+                     ncol = 2,
+                     labels = "AUTO")
+)
+
+ggsave(full_strain_and_serotype_validation_plot,
+       file = "full_strain_and_serotype_validation_plot.png",
+       width = 7,
+       height = 5
+)
 
 ```
 
 ``` {r Plot invasiveness across all serotypes}
+
 # Annotate serotypes by status
 best_fitting_output <- 
-  progressionEstimation::process_progression_rate_model_output(full_adjusted_type_specific_poisson_fit,
-                                                               S_pneumoniae_infant_serotype) %>%
+  progressionEstimation::process_progression_rate_model_output(full_adjusted_strain_and_serotype_specific_poisson_fit,
+                                                               S_pneumoniae_infant_strain,
+                                                               combined_strain_subtype = TRUE) %>%
+    dplyr::mutate("categorisation" = S_pneumoniae_infant_strain$categorisation) %>%
     dplyr::mutate("classification" = dplyr::case_when(
         categorisation %in% vaccine_types[["PCV7"]] ~ "PCV7",
         categorisation %in% vaccine_types[["PCV10"]] ~ "PCV10",
@@ -591,24 +730,144 @@ best_fitting_output <-
                                                                      "No PCV")))
 
 # Order serotypes
-serotype_levels <-
+strains_by_invasiveness <-
   best_fitting_output %>%
-    dplyr::select(categorisation,classification) %>%
+    dplyr::select(combined,nu) %>%
     dplyr::distinct() %>%
-    dplyr::arrange(classification,categorisation) %>%
-    dplyr::select(categorisation) %>%
+    dplyr::arrange(desc(nu)) %>%
+    dplyr::select(combined) %>%
     dplyr::pull()
 
 best_fitting_output %<>%
-  dplyr::mutate(categorisation = factor(categorisation, levels = serotype_levels))
+  dplyr::mutate(combined = factor(combined, levels = strains_by_invasiveness))
+
+# Plot
+(full_invasiveness_plot <-
+  progressionEstimation::plot_progression_rates(best_fitting_output,
+                                                subtype = "combined",
+                                                unit_time = "year",
+                                                type_name = "Serotype",
+                                                colour_col = "classification",
+                                                colour_palette = vaccine_colours,
+                                                use_sample_size = TRUE) +
+    theme(axis.text.x = element_text(size = 6))
+)
+
+ggsave(full_invasiveness_plot,
+       file = "full_strain_and_serotype_invasiveness_plot.png",
+       width = 20,
+       height = 10
+)
+
+```
+
+
+
+``` {r Plot only larger sample size}
+
+# Annotate sample size
+best_fitting_output %<>%
+  dplyr::group_by(combined) %>%
+  dplyr::mutate(num_observations = sum(carriage+disease)) %>%
+  dplyr::ungroup() %>%
+  dplyr::filter(num_observations >= 10) %>%
+  dplyr::group_by(strain) %>%
+  dplyr::mutate(num_serotypes = dplyr::n_distinct(categorisation)) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(categorisation) %>%
+  dplyr::mutate(num_strains = dplyr::n_distinct(strain)) %>%
+  dplyr::ungroup()
 
 # Plot
 (invasiveness_plot <-
   progressionEstimation::plot_progression_rates(best_fitting_output,
+                                                subtype = "combined",
                                                 unit_time = "year",
                                                 type_name = "Serotype",
                                                 colour_col = "classification",
-                                                colour_palette = vaccine_colours))
+                                                colour_palette = vaccine_colours,
+                                                use_sample_size = TRUE))
+
+```
+
+``` {r Plot variation within serotypes, fig.height = 12}
+
+mixedrank = function(x) order(gtools::mixedorder(as.character(x)))
+
+# Reorder by serotype
+strain_and_serotype_levels <-
+  best_fitting_output %>%
+    dplyr::select(combined,classification) %>%
+    dplyr::distinct() %>%
+    dplyr::arrange(classification,combined) %>%
+    dplyr::select(combined) %>%
+    dplyr::pull()
+
+serotype_levels <-
+  best_fitting_output %>%
+    dplyr::select(categorisation,classification) %>%
+    dplyr::distinct() %>%
+    dplyr::group_by(classification) %>%
+    dplyr::arrange(mixedrank(categorisation),
+                   .by_group = TRUE) %>%
+    dplyr::ungroup() %>%
+    dplyr::select(categorisation) %>%
+    dplyr::pull()
+
+best_fitting_output %<>%
+  dplyr::mutate(combined = factor(combined, levels = strain_and_serotype_levels)) %>%
+  dplyr::mutate(categorisation = factor(categorisation, levels = serotype_levels))
+
+(serotype_invasiveness_plot <-
+  progressionEstimation::plot_progression_rates(best_fitting_output %>%
+                                                  dplyr::filter(num_strains > 1),
+                                                subtype = "combined",
+                                                unit_time = "year",
+                                                type_name = "Serotype",
+                                                colour_col = "classification",
+                                                colour_palette = vaccine_colours,
+                                                use_sample_size = TRUE) +
+                                                facet_wrap(.~categorisation,
+                                                           scales = 'free_x'))
+
+ggsave(serotype_invasiveness_plot,
+       file = "within_serotype_invasiveness_variation_plot.png",
+       width = 8,
+       height = 12
+)
+
+```
+
+
+``` {r Plot variation within strains, fig.height = 12}
+
+strain_levels <-
+  best_fitting_output %>%
+    dplyr::select(strain) %>%
+    dplyr::distinct() %>%
+    dplyr::arrange(mixedrank(strain)) %>%
+    dplyr::pull()
+
+best_fitting_output %<>%
+  dplyr::mutate(strain = factor(strain, levels = strain_levels))
+
+(strain_invasiveness_plot <-
+  progressionEstimation::plot_progression_rates(best_fitting_output %>%
+                                                  dplyr::filter(num_serotypes > 1),
+                                                subtype = "combined",
+                                                unit_time = "year",
+                                                type_name = "Serotype",
+                                                colour_col = "classification",
+                                                colour_palette = vaccine_colours,
+                                                use_sample_size = TRUE) +
+                                                facet_wrap(.~strain,
+                                                           scales = 'free_x'))
+
+ggsave(strain_invasiveness_plot,
+       file = "within_strain_invasiveness_variation_plot.png",
+       width = 8,
+       height = 8
+)
 
 ```
 
@@ -619,176 +878,298 @@ best_fitting_output %<>%
 (scale_factor_plot <-
   progressionEstimation::plot_study_scale_factors(best_fitting_output))
 
-```
-
-## Comparison with odds ratio calculation
-
-``` {r Calculate odds ratios}
-
-require(metafor)
-
-get_serotype_stats <- function(serotype, df) {
-  sero_df <-
-    df %>%
-      tidyr::pivot_longer(c(carriage,disease),
-                          names_to = "clinical_manifestation",
-                          values_to = "observation") %>%
-      dplyr::group_by(study) %>%
-      dplyr::mutate(matching_type = dplyr::if_else(categorisation == serotype,1,0)) %>%
-      dplyr::mutate(matching_type_disease =
-                      sum(observation[clinical_manifestation == "disease" & matching_type == 1])) %>%
-      dplyr::mutate(matching_type_carriage =
-                      sum(observation[clinical_manifestation == "carriage" & matching_type == 1])) %>%
-      dplyr::mutate(non_matching_type_disease =
-                      sum(observation[clinical_manifestation == "disease" & matching_type == 0])) %>%
-      dplyr::mutate(non_matching_type_carriage =
-                      sum(observation[clinical_manifestation == "carriage" & matching_type == 0])) %>%
-      dplyr::ungroup() %>%
-    dplyr::select(study,matching_type_disease,matching_type_carriage,non_matching_type_disease,non_matching_type_carriage) %>%
-    dplyr::distinct() %>%
-    dplyr::mutate(serotype = serotype)
-  return(sero_df)
-}
-
-per_serotype_estimate <- function(test_serotype, df, method_type = "FE") {
-  per_serotype_out <- metafor::rma(yi = yi,
-                       vi = vi,
-                       data = df,
-                       slab = study,
-                       subset = serotype == test_serotype,
-                       method = method_type,
-                       control=list(stepadj=0.5, maxiter=1000))
-  summary_df <-
-    data.frame(
-      "Analysis" = method_type,
-      "Serotype" = test_serotype,
-      "OR" = as.numeric(per_serotype_out$b),
-      "OR_upper" = per_serotype_out$ci.ub,
-      "OR_lower" = per_serotype_out$ci.lb,
-      "tau_squared" = per_serotype_out$tau2,
-      "i_squared" = per_serotype_out$I2,
-      "h_squared" = per_serotype_out$H2
-    )
-  return(summary_df)
-}
-
-serotype_or_df <- dplyr::bind_rows(lapply(
-                                   serotype_levels,
-                                   get_serotype_stats,
-                                   S_pneumoniae_infant_serotype)
+ggsave(scale_factor_plot,
+       file = "full_strain_and_serotype_scale_factor_plot.png",
+       width = 6,
+       height = 6
 )
 
-serotype_effect_size_df <- metafor::escalc(measure = "OR",
-                                            ai = matching_type_disease,
-                                            bi = matching_type_carriage,
-                                            ci = non_matching_type_disease,
-                                            di = non_matching_type_carriage,
-                                            slab = study,
-                                            data = serotype_or_df)
+```
 
-per_serotype_out <- dplyr::bind_rows(
-                    lapply(
-                      serotype_levels,
-                      per_serotype_estimate,
-                      serotype_effect_size_df
-                    ),
-                    lapply(
-                      serotype_levels,
-                      per_serotype_estimate,
-                      serotype_effect_size_df,
-                      method_type = "REML"
+``` {r Sensitivity to population sizes}
+
+sensitivity_S_pneumoniae_infant_strain <-
+  S_pneumoniae_infant_strain %>%
+    dplyr::filter(carriage >= threshold_count | disease >= threshold_count) %>%
+    dplyr::mutate(carriage_samples = dplyr::case_when(
+                      study %in% c("Finland.Pre.PCV","Oxford.pre.PCV","Stockholm.pre.PCV") ~ as.integer(carriage_samples*100),
+                      TRUE ~ carriage_samples
                     )
+                  )
+
+sensitivity_S_pneumoniae_infant_strain %<>%
+    dplyr::mutate(study = factor(study, levels = studies_by_size[studies_by_size %in% unique(sensitivity_S_pneumoniae_infant_strain$study)]))
+
+sensitivity_S_pneumoniae_infant_strain %<>%
+    dplyr::mutate(categorisation = factor(categorisation,
+                                          levels = serotype_by_count[serotype_by_count %in% unique(sensitivity_S_pneumoniae_infant_strain$categorisation)])) %>%
+  dplyr::mutate(strain = factor(strain))
+
+# Generate input for serotype models
+sensitivity_infant_serotype_invasiveness <- 
+  progressionEstimation::process_input_data(sensitivity_S_pneumoniae_infant_strain,
+                                            condense = FALSE)
+
+# Generate input for strain models
+sensitivity_infant_strain_invasiveness <- 
+  progressionEstimation::process_input_data(sensitivity_S_pneumoniae_infant_strain,
+                                            subtype = "strain",
+                                            condense = FALSE)
+
+# Generate input for strain and serotype models
+sensitivity_infant_serotype_and_strain_invasiveness <- 
+  progressionEstimation::process_input_data(sensitivity_S_pneumoniae_infant_strain,
+                                            use_strain = TRUE,
+                                            condense = FALSE)
+
+# Generate input for serotype models
+sensitivity_infant_serotype_strain_combined_invasiveness <- 
+  progressionEstimation::process_input_data(sensitivity_S_pneumoniae_infant_strain,
+                                            combine_strain = TRUE,
+                                            condense = FALSE)
+
+
+```
+
+Fit the first model:
+
+``` {r First sensitivity test}
+sensitivity_adjusted_serotype_specific_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(sensitivity_infant_serotype_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    stat_model = "poisson",
+                                                    model_description = "serotype_specific_poisson",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+sensitivity_adjusted_serotype_specific_poisson_output_df <-
+  progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_serotype_specific_poisson_fit,
+                                                               sensitivity_S_pneumoniae_infant_strain,
+                                                               condense = FALSE)
+```
+
+``` {r Adjusted serotype-specific negative binomial model fit sensitivity test, include = FALSE}
+
+sensitivity_adjusted_serotype_specific_negbin_fit <- 
+  progressionEstimation::fit_progression_rate_model(sensitivity_infant_serotype_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    stat_model = "negbin",
+                                                    model_description = "serotype_specific_negbin",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+sensitivity_adjusted_serotype_specific_negbin_output_df <-
+  progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_serotype_specific_negbin_fit,
+                                                               sensitivity_S_pneumoniae_infant_strain,
+                                                               condense = FALSE)
+
+```
+
+``` {r Adjusted strain-specific Poisson model fit sensitivity test, include = FALSE}
+
+sensitivity_adjusted_strain_specific_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(sensitivity_infant_strain_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    stat_model = "poisson",
+                                                    model_description = "strain_specific_poisson",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+sensitivity_adjusted_strain_specific_poisson_output_df <-
+  progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_specific_poisson_fit,
+                                                               sensitivity_S_pneumoniae_infant_strain,
+                                                               subtype = "strain",
+                                                               condense = FALSE)
+
+```
+
+
+``` {r Adjusted strain-specific negative binomial model fit sensitivity test, include = FALSE}
+
+sensitivity_adjusted_strain_specific_negbin_fit <- 
+  progressionEstimation::fit_progression_rate_model(sensitivity_infant_strain_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    stat_model = "negbin",
+                                                    model_description = "strain_specific_negbin",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+sensitivity_adjusted_strain_specific_negbin_output_df <-
+  progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_specific_negbin_fit,
+                                                               sensitivity_S_pneumoniae_infant_strain,
+                                                               subtype = "strain",
+                                                               condense = FALSE)
+
+```
+
+
+
+
+
+
+``` {r Adjusted serotype-specific strain-modified Poisson model fit sensitivity test, include = FALSE}
+
+sensitivity_adjusted_serotype_specific_strain_modified_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(sensitivity_infant_serotype_and_strain_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    strain_as_secondary_type = TRUE,
+                                                    stat_model = "poisson",
+                                                    model_description = "serotype_specific_strain_modified_poisson",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+sensitivity_adjusted_serotype_specific_strain_modified_poisson_output_df <-
+  progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_serotype_specific_strain_modified_poisson_fit,
+                                                               sensitivity_S_pneumoniae_infant_strain,
+                                                               strain_as_secondary_type = TRUE,
+                                                               condense = FALSE)
+
+```
+
+
+
+``` {r Adjusted serotype-specific strain-modified negative binomial model fit sensitivity test, include = FALSE}
+
+sensitivity_adjusted_strain_specific_strain_modified_negbin_fit <- 
+  progressionEstimation::fit_progression_rate_model(sensitivity_infant_serotype_and_strain_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    strain_as_secondary_type = TRUE,
+                                                    stat_model = "negbin",
+                                                    model_description = "serotype_specific_strain_modified_negbin",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+sensitivity_adjusted_serotype_specific_strain_modified_negbin_output_df <-
+  progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_specific_strain_modified_negbin_fit,
+                                                               sensitivity_S_pneumoniae_infant_strain,
+                                                               strain_as_secondary_type = TRUE,
+                                                               condense = FALSE)
+
+```
+
+
+
+``` {r Adjusted serotype-specific strain-modified Poisson model fit sensitivity test, include = FALSE}
+
+sensitivity_adjusted_strain_specific_serotype_modified_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(sensitivity_infant_serotype_and_strain_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    strain_as_primary_type = TRUE,
+                                                    stat_model = "poisson",
+                                                    model_description = "strain_specific_serotype_modified_poisson",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+sensitivity_adjusted_strain_specific_serotype_modified_poisson_output_df <-
+  progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_specific_serotype_modified_poisson_fit,
+                                                               sensitivity_S_pneumoniae_infant_strain,
+                                                               strain_as_primary_type = TRUE,
+                                                               condense = FALSE)
+
+```
+
+
+
+``` {r Adjusted serotype-specific strain-modified Poisson model fit sensitivity test, include = FALSE}
+
+sensitivity_adjusted_strain_specific_serotype_modified_negbin_fit <- 
+  progressionEstimation::fit_progression_rate_model(sensitivity_infant_serotype_and_strain_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    strain_as_primary_type = TRUE,
+                                                    stat_model = "negbin",
+                                                    model_description = "strain_specific_serotype_modified_negbin",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+sensitivity_adjusted_strain_specific_serotype_modified_negbin_output_df <-
+  progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_specific_serotype_modified_negbin_fit,
+                                                               sensitivity_S_pneumoniae_infant_strain,
+                                                               strain_as_primary_type = TRUE,
+                                                               condense = FALSE)
+
+```
+
+
+``` {r Adjusted serotype-specific strain-modified Poisson model fit sensitivity test, include = FALSE}
+
+sensitivity_adjusted_strain_and_serotype_specific_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(sensitivity_infant_serotype_strain_combined_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    stat_model = "poisson",
+                                                    model_description = "strain_and_serotype_specific_poisson",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+sensitivity_adjusted_strain_and_serotype_specific_poisson_output_df <-
+  progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_and_serotype_specific_poisson_fit,
+                                                               sensitivity_S_pneumoniae_infant_strain,
+                                                               combined_strain_subtype = TRUE,
+                                                               condense = FALSE)
+
+```
+
+
+``` {r Adjusted serotype-specific strain-modified negative binomial model fit sensitivity test, include = FALSE}
+
+sensitivity_adjusted_strain_and_serotype_specific_negbin_fit <- 
+  progressionEstimation::fit_progression_rate_model(sensitivity_infant_serotype_strain_combined_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    stat_model = "negbin",
+                                                    model_description = "strain_and_serotype_specific_negbin",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+sensitivity_adjusted_strain_and_serotype_specific_negbin_output_df <-
+  progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_and_serotype_specific_negbin_fit,
+                                                               sensitivity_S_pneumoniae_infant_strain,
+                                                               combined_strain_subtype = TRUE,
+                                                               condense = FALSE)
+
+```
+
+``` {r Compare sensitivity fits}
+
+sensitivity_fit_list <- list(
+  sensitivity_adjusted_serotype_specific_poisson_fit,
+  sensitivity_adjusted_serotype_specific_negbin_fit,
+  sensitivity_adjusted_strain_specific_poisson_fit,
+  sensitivity_adjusted_strain_specific_negbin_fit,
+  sensitivity_adjusted_serotype_specific_strain_modified_poisson_fit,
+  sensitivity_adjusted_strain_specific_strain_modified_negbin_fit,
+  sensitivity_adjusted_strain_specific_serotype_modified_poisson_fit,
+  sensitivity_adjusted_strain_specific_serotype_modified_negbin_fit,
+  sensitivity_adjusted_strain_and_serotype_specific_poisson_fit,
+  sensitivity_adjusted_strain_and_serotype_specific_negbin_fit
 )
 
-# Combine the invasiveness estimates
-combined_invasiveness_df <-
-  dplyr::bind_rows(
-    per_serotype_out %>%
-      dplyr::select(Analysis, Serotype, OR, OR_upper, OR_lower) %>%
-      dplyr::rename(Invasiveness = OR) %>%
-      dplyr::rename(Invasiveness_upper = OR_upper) %>%
-      dplyr::rename(Invasiveness_lower = OR_lower),
-    best_fitting_output %>%
-      dplyr::select(model_name, nu, nu_lower, nu_upper, categorisation) %>%
-      dplyr::distinct() %>%
-      dplyr::rename(Analysis = model_name) %>%
-      dplyr::rename(Serotype = categorisation) %>%
-      dplyr::rename(Invasiveness = nu) %>%
-      dplyr::rename(Invasiveness_upper = nu_upper) %>%
-      dplyr::rename(Invasiveness_lower = nu_lower)
-  ) %>%
-  tidyr::pivot_wider(id_cols = Serotype,
-                     names_from = Analysis,
-                     values_from = c(Invasiveness,Invasiveness_upper,Invasiveness_lower),
-                     names_sep = "_") %>%
-    dplyr::mutate("classification" = dplyr::case_when(
-        Serotype %in% vaccine_types[["PCV7"]] ~ "PCV7",
-        Serotype %in% vaccine_types[["PCV10"]] ~ "PCV10",
-        Serotype %in% vaccine_types[["PCV13"]] ~ "PCV13",
-        Serotype %in% vaccine_types[["PCV15"]] ~ "PCV15",
-        Serotype %in% vaccine_types[["PCV20"]] ~ "PCV20",
-        Serotype %in% vaccine_types[["PPV23"]] ~ "PPV23",
-        TRUE ~ "No PCV"
-      )
-    )
+sensitivity_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(
+                                                    sensitivity_fit_list,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
 
-# Plot comparison of invasiveness estimates
-ggplot(combined_invasiveness_df,
-       aes(x = Invasiveness_adjusted_type_specific_poisson,
-           xmin = Invasiveness_lower_adjusted_type_specific_poisson,
-           xmax = Invasiveness_upper_adjusted_type_specific_poisson,
-           y = Invasiveness_FE,
-           ymin = Invasiveness_lower_FE,
-           ymax = Invasiveness_upper_FE,
-           colour = classification)) +
-  geom_errorbar(alpha = 0.25) +
-  geom_errorbarh(alpha = 0.25) +
-  geom_point() +
-  scale_x_continuous(trans = "log10") +
-  theme_bw() +
-  scale_color_manual(values = vaccine_colours) +
-  theme(legend.position = "bottom") +
-  ylab("Invasiveness estimated from log odds ratio") +
-  xlab("Invasivess estimate from adjusted type-specific Poisson (cases per carrier per year)") +
-  ggrepel::geom_label_repel(
-    data = (
-      combined_invasiveness_df %>%
-        dplyr::filter((Invasiveness_adjusted_type_specific_poisson < 10**(-4.1) & Invasiveness_FE > 0) |
-                        (Invasiveness_adjusted_type_specific_poisson > 1e-2 & Invasiveness_FE < 2))
-    ),
-    aes(label = Serotype)
-    )
+sensitivity_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
 
 ```
-
-``` {r Plot comparison with mixed effects}
-
-# Plot comparison of invasiveness estimates
-ggplot(combined_invasiveness_df,
-       aes(x = Invasiveness_adjusted_type_specific_poisson,
-           xmin = Invasiveness_lower_adjusted_type_specific_poisson,
-           xmax = Invasiveness_upper_adjusted_type_specific_poisson,
-           y = Invasiveness_REML,
-           ymin = Invasiveness_lower_REML,
-           ymax = Invasiveness_upper_REML,
-           colour = classification)) +
-  geom_errorbar(alpha = 0.25) +
-  geom_errorbarh(alpha = 0.25) +
-  geom_point() +
-  scale_x_continuous(trans = "log10") +
-  theme_bw() +
-  scale_color_manual(values = vaccine_colours) +
-  theme(legend.position = "bottom") +
-  ylab("Invasiveness estimated from log odds ratio") +
-  xlab("Invasivess estimate from adjusted type-specific Poisson (cases per carrier per year)") +
-  ggrepel::geom_label_repel(
-    data = (
-      combined_invasiveness_df %>%
-        dplyr::filter((Invasiveness_adjusted_type_specific_poisson < 10**(-4.1) & Invasiveness_REML > 0) |
-                        (Invasiveness_adjusted_type_specific_poisson > 1e-2 & Invasiveness_REML < 2))
-    ),
-    aes(label = Serotype)
-    )
-
-```
-.

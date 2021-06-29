@@ -76,19 +76,20 @@ studies_by_size <-
 S_pneumoniae_infant_serotype %<>%
   dplyr::mutate(study = factor(study, levels = studies_by_size))
 
-ggplot(S_pneumoniae_infant_serotype %>%
-         tidyr::pivot_longer(c(carriage,disease),
-                             names_to = "Sample type",
-                             values_to = "count"),
-       aes(x = study,
-           y = count,
-           colour = `Sample type`,
-           fill = `Sample type`)) +
-  geom_col() +
-  theme_bw() + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-  scale_fill_manual(values = epi_colors) +
-  scale_colour_manual(values = epi_colors)
+full_epi_data_plot <-
+  ggplot(S_pneumoniae_infant_serotype %>%
+           tidyr::pivot_longer(c(carriage,disease),
+                               names_to = "Sample type",
+                               values_to = "count"),
+         aes(x = study,
+             y = count,
+             colour = `Sample type`,
+             fill = `Sample type`)) +
+    geom_col() +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+    scale_fill_manual(values = epi_colors) +
+    scale_colour_manual(values = epi_colors)
 
 ```
 
@@ -109,20 +110,34 @@ serotype_by_count <-
 S_pneumoniae_infant_serotype %<>%
   dplyr::mutate(categorisation = factor(categorisation, levels = serotype_by_count))
 
-ggplot(S_pneumoniae_infant_serotype %>%
-         tidyr::pivot_longer(c(carriage,disease),
-                             names_to = "Sample type",
-                             values_to = "count"),
-       aes(x = categorisation,
-           y = count,
-           colour = `Sample type`,
-           fill = `Sample type`)) +
-  geom_col() +
-  xlab("Serotype") +
-  theme_bw() + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-  scale_fill_manual(values = epi_colors) +
-  scale_colour_manual(values = epi_colors)
+serotype_frequency_plot <-
+  ggplot(S_pneumoniae_infant_serotype %>%
+           tidyr::pivot_longer(c(carriage,disease),
+                               names_to = "Sample type",
+                               values_to = "count"),
+         aes(x = categorisation,
+             y = count,
+             colour = `Sample type`,
+             fill = `Sample type`)) +
+    geom_col() +
+    xlab("Serotype") +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+    scale_fill_manual(values = epi_colors) +
+    scale_colour_manual(values = epi_colors)
+
+(combined_full_epi_data_plot <-
+  cowplot::plot_grid(plotlist = list(full_epi_data_plot, serotype_frequency_plot),
+                     nrow = 2,
+                     ncol = 1,
+                     labels = "AUTO")
+)
+
+ggsave(combined_full_epi_data_plot,
+       file = "full_epi_data_plot.png",
+       height = 12,
+       width = 8
+)
 
 ```
 
@@ -134,16 +149,17 @@ threshold_count <- 5
 
 filtered_S_pneumoniae_infant_serotype <-
   S_pneumoniae_infant_serotype %>%
-    dplyr::filter(carriage >= threshold_count | disease >= threshold_count) %>%
-    dplyr::group_by(categorisation) %>%
-    dplyr::mutate(study_count = n()) %>%
-    dplyr::ungroup() %>%
-    dplyr::filter(study_count > threshold_count) %>%
-    dplyr::group_by(study) %>%
-    dplyr::mutate(serotype_count = n()) %>%
-    dplyr::ungroup() %>%
-    dplyr::filter(serotype_count > threshold_count) %>%
-    dplyr::mutate(categorisation = factor(categorisation))
+    dplyr::filter(carriage >= threshold_count | disease >= threshold_count)
+# %>%
+#     dplyr::group_by(categorisation)%>%
+#     dplyr::mutate(study_count = n()) %>%
+#     dplyr::ungroup() %>%
+#     dplyr::filter(study_count > threshold_count) %>%
+#     dplyr::group_by(study) %>%
+#     dplyr::mutate(serotype_count = n()) %>%
+#     dplyr::ungroup() %>%
+#     dplyr::filter(serotype_count > threshold_count) %>%
+#     dplyr::mutate(categorisation = factor(categorisation))
 
 filtered_S_pneumoniae_infant_serotype %<>%
     dplyr::mutate(study = factor(study, levels = studies_by_size[studies_by_size %in% unique(filtered_S_pneumoniae_infant_serotype$study)]))
@@ -155,20 +171,49 @@ filtered_S_pneumoniae_infant_serotype %<>%
 infant_serotype_invasiveness <- 
   progressionEstimation::process_input_data(filtered_S_pneumoniae_infant_serotype)
 
-ggplot(filtered_S_pneumoniae_infant_serotype %>%
-         tidyr::pivot_longer(c(carriage,disease),
-                             names_to = "Sample type",
-                             values_to = "count"),
-       aes(x = categorisation,
-           y = count,
-           colour = `Sample type`,
-           fill = `Sample type`)) +
-  geom_col() +
-  xlab("Serotype") +
-  theme_bw() + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-  scale_fill_manual(values = epi_colors) +
-  scale_colour_manual(values = epi_colors)
+filtered_epi_data_plot <-
+    ggplot(filtered_S_pneumoniae_infant_serotype %>%
+           tidyr::pivot_longer(c(carriage,disease),
+                               names_to = "Sample type",
+                               values_to = "count"),
+         aes(x = study,
+             y = count,
+             colour = `Sample type`,
+             fill = `Sample type`)) +
+    geom_col() +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+    scale_fill_manual(values = epi_colors) +
+    scale_colour_manual(values = epi_colors)
+
+filtered_serotype_frequency_plot <-
+  ggplot(filtered_S_pneumoniae_infant_serotype %>%
+           tidyr::pivot_longer(c(carriage,disease),
+                               names_to = "Sample type",
+                               values_to = "count"),
+         aes(x = categorisation,
+             y = count,
+             colour = `Sample type`,
+             fill = `Sample type`)) +
+    geom_col() +
+    xlab("Serotype") +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+    scale_fill_manual(values = epi_colors) +
+    scale_colour_manual(values = epi_colors)
+
+(combined_filtered_epi_data_plot <-
+  cowplot::plot_grid(plotlist = list(filtered_epi_data_plot, filtered_serotype_frequency_plot),
+                     nrow = 2,
+                     ncol = 1,
+                     labels = "AUTO")
+)
+
+ggsave(combined_filtered_epi_data_plot,
+       file = "filtered_epi_data_plot.png",
+       height = 12,
+       width = 8
+)
 
 ```
 
@@ -489,7 +534,11 @@ The best-fitting model can then be applied to the overall dataset.
 ``` {r Plot invasiveness estimates from best-fitting model}
 
 full_infant_serotype_invasiveness <- 
-  progressionEstimation::process_input_data(S_pneumoniae_infant_serotype)
+  progressionEstimation::process_input_data(
+    S_pneumoniae_infant_serotype %<>%
+      dplyr::mutate(study = factor(study, levels = studies_by_size)
+      )
+    )
 
 full_adjusted_type_specific_poisson_fit <- 
   progressionEstimation::fit_progression_rate_model(full_infant_serotype_invasiveness,
@@ -512,6 +561,9 @@ cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
 ```
 
 ``` {r Plot invasiveness across all serotypes}
+
+mixedrank = function(x) order(gtools::mixedorder(as.character(x)))
+
 # Annotate serotypes by status
 best_fitting_output <- 
   progressionEstimation::process_progression_rate_model_output(full_adjusted_type_specific_poisson_fit,
@@ -539,7 +591,10 @@ serotype_levels <-
   best_fitting_output %>%
     dplyr::select(categorisation,classification) %>%
     dplyr::distinct() %>%
-    dplyr::arrange(classification,categorisation) %>%
+    group_by(classification) %>%
+    dplyr::arrange(mixedrank(categorisation),
+                   .by_group = TRUE) %>%
+    ungroup() %>%
     dplyr::select(categorisation) %>%
     dplyr::pull()
 
@@ -552,7 +607,13 @@ best_fitting_output %<>%
                                                 unit_time = "year",
                                                 type_name = "Serotype",
                                                 colour_col = "classification",
-                                                colour_palette = vaccine_colours))
+                                                colour_palette = vaccine_colours,
+                                                use_sample_size = TRUE))
+
+ggsave(invasiveness_plot,
+       file = "full_serotype_invasiveness_plot.png",
+       height = 8,
+       width = 8)
 
 ```
 
@@ -565,10 +626,126 @@ best_fitting_output %<>%
 
 ```
 
+## Compare a model fit that account for PCVs protecting against disease
+
+If PCVs provide further protection against disease, relative to carriage, then their invasiveness may reduce post-PCV. Therefore we can treat them as different serotypes pre- and post-PCV.
+
+
+``` {r Adjust invasiveness post-PCV}
+
+pv_S_pneumoniae_infant_serotype <-
+  S_pneumoniae_infant_serotype %>%
+    dplyr::mutate(categorisation = dplyr::case_when(
+                      categorisation %in% vaccine_types[["PCV7"]] & grepl("post.PCV", study) ~ paste0(categorisation,"_pv"),
+                      categorisation == "6A" & grepl("post.PCV", study) ~ paste0(categorisation,"_pv"),
+                      categorisation %in% vaccine_types[["PCV10"]] & grepl("post.PCV10", study) ~ paste0(categorisation,"_pv"),
+                      categorisation %in% vaccine_types[["PCV10"]] & grepl("post.PCV13", study) ~ paste0(categorisation,"_pv"),
+                      categorisation %in% vaccine_types[["PCV13"]] & grepl("post.PCV13", study) ~ paste0(categorisation,"_pv"),
+                      categorisation == "6C" & grepl("post.PCV13", study) ~ paste0(categorisation,"_pv"),
+                      TRUE ~ as.character(categorisation)
+                    )
+                  ) %>%
+  dplyr::mutate(categorisation = factor(categorisation))
+
+pv_S_pneumoniae_infant_serotype %<>%
+  dplyr::mutate(study = factor(study, levels = studies_by_size))
+
+pv_full_infant_serotype_invasiveness <- 
+  progressionEstimation::process_input_data(pv_S_pneumoniae_infant_serotype)
+
+pv_full_adjusted_type_specific_poisson_fit <- 
+  progressionEstimation::fit_progression_rate_model(pv_full_infant_serotype_invasiveness,
+                                                    type_specific = TRUE,
+                                                    location_adjustment = TRUE,
+                                                    stat_model = "poisson",
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+
+rhat_plot <- plot(pv_full_adjusted_type_specific_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
+
+trace_plot <- rstan::traceplot(pv_full_adjusted_type_specific_poisson_fit, pars = "lp__")
+
+cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
+                   nrow = 1,
+                   ncol = 2,
+                   labels = "AUTO")
+```
+
+``` {r Analyse the pv output}
+
+pv_best_fitting_output <- 
+  progressionEstimation::process_progression_rate_model_output(
+    pv_full_adjusted_type_specific_poisson_fit,                                                 pv_S_pneumoniae_infant_serotype) %>%
+      dplyr::mutate("classification" = dplyr::case_when(
+          gsub("_pv","",categorisation) %in% vaccine_types[["PCV7"]] ~ "PCV7",
+          gsub("_pv","",categorisation) %in% vaccine_types[["PCV10"]] ~ "PCV10",
+          gsub("_pv","",categorisation) %in% vaccine_types[["PCV13"]] ~ "PCV13",
+          gsub("_pv","",categorisation) %in% vaccine_types[["PCV15"]] ~ "PCV15",
+          gsub("_pv","",categorisation) %in% vaccine_types[["PCV20"]] ~ "PCV20",
+          gsub("_pv","",categorisation) %in% vaccine_types[["PPV23"]] ~ "PPV23",
+          TRUE ~ "No PCV"
+        )
+      ) %>%
+      dplyr::mutate(classification = factor(classification, levels = c("PCV7",
+                                                                       "PCV10",
+                                                                       "PCV13",
+                                                                       "PCV15",
+                                                                       "PCV20",
+                                                                       "PPV23",
+                                                                       "No PCV")))
+
+# Order serotypes
+pv_serotype_levels <-
+  pv_best_fitting_output %>%
+    dplyr::select(categorisation,classification) %>%
+    dplyr::distinct() %>%
+    group_by(classification) %>%
+    dplyr::arrange(mixedrank(categorisation),
+                   .by_group = TRUE) %>%
+    ungroup() %>%
+    dplyr::select(categorisation) %>%
+    dplyr::pull()
+
+pv_best_fitting_output %<>%
+  dplyr::mutate(categorisation = factor(categorisation, levels = pv_serotype_levels))
+
+# Plot
+(pv_invasiveness_plot <-
+  progressionEstimation::plot_progression_rates(pv_best_fitting_output,
+                                                unit_time = "year",
+                                                type_name = "Serotype",
+                                                colour_col = "classification",
+                                                colour_palette = vaccine_colours,
+                                                use_sample_size = TRUE))
+
+(joint_invasiveness_plot <-
+    cowplot::plot_grid(plotlist = list(invasiveness_plot, pv_invasiveness_plot),
+                       nrow = 2,
+                       ncol = 1,
+                       labels = "AUTO"
+                       )
+)
+
+ggsave(joint_invasiveness_plot,
+       file = "join_infant_serotype_plot.png",
+       height = 10,
+       width = 8)
+
+```
+
+``` {r Plot study-specific scale factor estimates from best-fitting model, adjust for vaccine}
+
+(pv_scale_factor_plot <-
+  progressionEstimation::plot_study_scale_factors(pv_best_fitting_output))
+
+```
+
 ## Comparison with odds ratio calculation
 
 ``` {r Calculate odds ratios}
 
+require(ggpubr)
 require(metafor)
 
 get_serotype_stats <- function(serotype, df) {
@@ -590,18 +767,19 @@ get_serotype_stats <- function(serotype, df) {
       dplyr::ungroup() %>%
     dplyr::select(study,matching_type_disease,matching_type_carriage,non_matching_type_disease,non_matching_type_carriage) %>%
     dplyr::distinct() %>%
-    dplyr::mutate(serotype = serotype)
+    dplyr::mutate(serotype = serotype) %>%
+    dplyr::filter(matching_type_carriage > 0 | matching_type_disease > 0)
   return(sero_df)
 }
 
 per_serotype_estimate <- function(test_serotype, df, method_type = "FE") {
   per_serotype_out <- metafor::rma(yi = yi,
-                       vi = vi,
-                       data = df,
-                       slab = study,
-                       subset = serotype == test_serotype,
-                       method = method_type,
-                       control=list(stepadj=0.5, maxiter=1000))
+                                   vi = vi,
+                                   data = df,
+                                   slab = study,
+                                   subset = serotype == test_serotype,
+                                   method = method_type,
+                                   control=list(stepadj=0.5, maxiter=10000))
   summary_df <-
     data.frame(
       "Analysis" = method_type,
@@ -644,6 +822,26 @@ per_serotype_out <- dplyr::bind_rows(
                     )
 )
 
+sample_sizes <-
+  best_fitting_output %>%
+      dplyr::group_by(categorisation) %>%
+      dplyr::mutate(num_samples = sum(carriage+disease)) %>%
+      dplyr::mutate(Sample_count = dplyr::case_when(
+                        num_samples < 11 ~ "0-10",
+                        num_samples < 51 ~ "11-50",
+                        num_samples < 101 ~ "51-100",
+                        TRUE ~ ">100"
+                      )
+                    ) %>%
+      dplyr::ungroup() %>%
+      dplyr::select(categorisation, Sample_count) %>%
+      dplyr::distinct() %>%
+      dplyr::mutate(Sample_count = factor(Sample_count,
+                                          levels = c("0-10",
+                                                     "11-50",
+                                                     "51-100",
+                                                     ">100")))
+
 # Combine the invasiveness estimates
 combined_invasiveness_df <-
   dplyr::bind_rows(
@@ -674,7 +872,8 @@ combined_invasiveness_df <-
         Serotype %in% vaccine_types[["PPV23"]] ~ "PPV23",
         TRUE ~ "No PCV"
       )
-    )
+    ) %>%
+  dplyr::left_join(sample_sizes, by = c("Serotype" = "categorisation"))
 
 # Plot comparison of invasiveness estimates
 ggplot(combined_invasiveness_df,
@@ -694,14 +893,16 @@ ggplot(combined_invasiveness_df,
   theme(legend.position = "bottom") +
   ylab("Invasiveness estimated from log odds ratio") +
   xlab("Invasivess estimate from adjusted type-specific Poisson (cases per carrier per year)") +
-  ggrepel::geom_label_repel(
-    data = (
-      combined_invasiveness_df %>%
-        dplyr::filter((Invasiveness_adjusted_type_specific_poisson < 10**(-4.1) & Invasiveness_FE > 0) |
-                        (Invasiveness_adjusted_type_specific_poisson > 1e-2 & Invasiveness_FE < 2))
-    ),
-    aes(label = Serotype)
-    )
+  facet_wrap(~Sample_count) +
+  stat_cor(aes(x = Invasiveness_adjusted_type_specific_poisson,
+               y = Invasiveness_FE),
+           inherit.aes = FALSE,
+           method = "kendall",
+           cor.coef.name = "tau") +
+  ggrepel::geom_label_repel(data = combined_invasiveness_df %>%
+                                    dplyr::filter((Invasiveness_adjusted_type_specific_poisson < 0.0005 & Invasiveness_FE > 0) | Serotype == "46"),
+                            aes(label = Serotype)
+                            )
 
 ```
 
@@ -725,13 +926,45 @@ ggplot(combined_invasiveness_df,
   theme(legend.position = "bottom") +
   ylab("Invasiveness estimated from log odds ratio") +
   xlab("Invasivess estimate from adjusted type-specific Poisson (cases per carrier per year)") +
-  ggrepel::geom_label_repel(
-    data = (
-      combined_invasiveness_df %>%
-        dplyr::filter((Invasiveness_adjusted_type_specific_poisson < 10**(-4.1) & Invasiveness_REML > 0) |
-                        (Invasiveness_adjusted_type_specific_poisson > 1e-2 & Invasiveness_REML < 2))
-    ),
-    aes(label = Serotype)
-    )
+  facet_wrap(~Sample_count) +
+  stat_cor(aes(x = Invasiveness_adjusted_type_specific_poisson,
+               y = Invasiveness_REML),
+           inherit.aes = FALSE,
+           method = "kendall",
+           cor.coef.name = "tau") +
+  ggrepel::geom_label_repel(data = combined_invasiveness_df %>%
+                                    dplyr::filter((Invasiveness_adjusted_type_specific_poisson < 0.0005 & Invasiveness_FE > 0) | Serotype == "46"),
+                            aes(label = Serotype)
+                            )
+
+```
+
+## Comparison with carriage duration
+
+``` {r Carriage duration comparison}
+
+carriage_duration.df <- data.frame(
+  "categorisation" = c("19F","23F","6B","14","21","19B","18C","29","3","4","24F","NT","5","6A","6C"),
+  "carriage_duration" = c(46.9,21,16.2,7.2,1.6,-0.1,-1.9,-4.3,-4.5,-7.2,-8.5,-12.3,-18.6,0,0)
+)
+
+carriage_duration.df %<>%
+  dplyr::inner_join(pv_best_fitting_output,
+                    by = "categorisation") %>%
+  dplyr::select(categorisation,carriage_duration,classification,nu,nu_lower,nu_upper) %>%
+  dplyr::distinct()
+
+ggplot(carriage_duration.df,
+       aes(x = carriage_duration,
+           y = nu,
+           ymin = nu_lower,
+           ymax = nu_upper,
+           colour = classification)) +
+  geom_point() +
+  geom_errorbar() +
+  scale_colour_manual(values = vaccine_colours) +
+  ggrepel::geom_label_repel(aes(label = categorisation)) +
+  scale_y_continuous(trans = "log10") +
+  theme_bw()
 
 ```

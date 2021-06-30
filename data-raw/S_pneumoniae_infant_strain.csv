@@ -1,4 +1,4 @@
-study,categorisation,carriage,disease,carriage_samples,surveillance_population,time_interval,strain
+study,type,carriage,disease,carriage_samples,surveillance_population,time_interval,strain
 South.Africa.Post.PCV7,31,7,0,2674,7187314,3,57
 South.Africa.Post.PCV13,7C,3,2,2023,7329006,2,93
 South.Africa.Post.PCV13,6A,3,1,2023,7329006,2,5

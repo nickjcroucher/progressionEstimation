@@ -1,4 +1,4 @@
-study,categorisation,carriage,disease,carriage_samples,surveillance_population,time_interval,strain
+study,type,carriage,disease,carriage_samples,surveillance_population,time_interval,strain
 Portugal.pre.PCV,19A,0,6,1170,2071223,3,10
 Portugal.pre.PCV,19A,2,7,1170,2071223,3,11
 Portugal.pre.PCV,3,26,25,1170,2071223,3,12

@@ -49,7 +49,7 @@ s_pneumoniae_sweden_df <- progressionEstimation::process_input_xlsx("s_pneumonia
 
 ```
 
-The data frame is then converted to the correct format for analysis with the Bayesian models, using the default subtyping:
+The data frame is then converted to the correct format for analysis with the Bayesian models, using the default typing:
 
 ```{r Process data frame}
 

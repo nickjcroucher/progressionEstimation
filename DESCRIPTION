@@ -36,8 +36,8 @@ Imports:
 Suggests: 
     knitr,
     rmarkdown,
-    metafor (>= 3.0)
-    ggpubr (>= 0.4)
+    metafor (>= 3.0),
+    ggpubr (>= 0.4),
     gtools (>= 3.9)
 VignetteBuilder: knitr
 RoxygenNote: 7.1.1

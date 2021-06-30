@@ -54,7 +54,7 @@ epi_colors <- c(
 
 ## Description and filtering of the dataset
 
-The dataset used in this analysis is contained in the `S_pneumoniae_infant_strain` object, which includes data from `r S_pneumoniae_infant_strain %>% dplyr::select(study) %>% dplyr::n_distinct()` studies on `r S_pneumoniae_infant_strain %>% dplyr::select(categorisation) %>% dplyr::n_distinct()` serotypes. The distribution of samples between each study can be plotted, if they are ranked by the mean number of carriage and disease isolates:
+The dataset used in this analysis is contained in the `S_pneumoniae_infant_strain` object, which includes data from `r S_pneumoniae_infant_strain %>% dplyr::select(study) %>% dplyr::n_distinct()` studies on `r S_pneumoniae_infant_strain %>% dplyr::select(type) %>% dplyr::n_distinct()` serotypes. The distribution of samples between each study can be plotted, if they are ranked by the mean number of carriage and disease isolates:
 
 ``` {r Plot distribution by study, include = FALSE}
 
@@ -93,22 +93,22 @@ The total number of observations for each serotype can be similarly plotted:
 
 serotype_by_count <-
   S_pneumoniae_infant_strain %>%
-    group_by(categorisation) %>%
+    group_by(type) %>%
     dplyr::mutate(total_count = sum(carriage)+sum(disease)) %>%
-    dplyr::select(categorisation,total_count) %>%
+    dplyr::select(type,total_count) %>%
     dplyr::distinct() %>%
     dplyr::arrange(desc(total_count)) %>%
-    dplyr::select(categorisation) %>%
+    dplyr::select(type) %>%
     dplyr::pull()
 
 S_pneumoniae_infant_strain %<>%
-  dplyr::mutate(categorisation = factor(categorisation, levels = serotype_by_count))
+  dplyr::mutate(type = factor(type, levels = serotype_by_count))
 
 ggplot(S_pneumoniae_infant_strain %>%
          tidyr::pivot_longer(c(carriage,disease),
                              names_to = "Sample type",
                              values_to = "count"),
-       aes(x = categorisation,
+       aes(x = type,
            y = count,
            colour = `Sample type`,
            fill = `Sample type`)) +
@@ -135,8 +135,8 @@ filtered_S_pneumoniae_infant_strain %<>%
     dplyr::mutate(study = factor(study, levels = studies_by_size[studies_by_size %in% unique(filtered_S_pneumoniae_infant_strain$study)]))
 
 filtered_S_pneumoniae_infant_strain %<>%
-    dplyr::mutate(categorisation = factor(categorisation,
-                                          levels = serotype_by_count[serotype_by_count %in% unique(filtered_S_pneumoniae_infant_strain$categorisation)])) %>%
+    dplyr::mutate(type = factor(type,
+                                          levels = serotype_by_count[serotype_by_count %in% unique(filtered_S_pneumoniae_infant_strain$type)])) %>%
   dplyr::mutate(strain = factor(strain))
 
 # Generate input for serotype models
@@ -147,7 +147,7 @@ infant_serotype_invasiveness <-
 # Generate input for strain models
 infant_strain_invasiveness <- 
   progressionEstimation::process_input_data(filtered_S_pneumoniae_infant_strain,
-                                            subtype = "strain",
+                                            type = "strain",
                                             condense = FALSE)
 
 # Generate input for strain and serotype models
@@ -166,7 +166,7 @@ ggplot(filtered_S_pneumoniae_infant_strain %>%
          tidyr::pivot_longer(c(carriage,disease),
                              names_to = "Sample type",
                              values_to = "count"),
-       aes(x = categorisation,
+       aes(x = type,
            y = count,
            colour = `Sample type`,
            fill = `Sample type`)) +
@@ -179,7 +179,7 @@ ggplot(filtered_S_pneumoniae_infant_strain %>%
 
 ```
 
-This filtered dataset comprises `r filtered_S_pneumoniae_infant_strain %>% dplyr::select(categorisation) %>% dplyr::n_distinct()` serotypes.
+This filtered dataset comprises `r filtered_S_pneumoniae_infant_strain %>% dplyr::select(type) %>% dplyr::n_distinct()` serotypes.
 
 ## Fitting the statistical models
 
@@ -253,7 +253,7 @@ adjusted_strain_specific_poisson_fit <-
 adjusted_strain_specific_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_strain_specific_poisson_fit,
                                                                filtered_S_pneumoniae_infant_strain,
-                                                               subtype = "strain",
+                                                               type = "strain",
                                                                condense = FALSE)
 
 ```
@@ -276,7 +276,7 @@ adjusted_strain_specific_negbin_fit <-
 adjusted_strain_specific_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_strain_specific_negbin_fit,
                                                                filtered_S_pneumoniae_infant_strain,
-                                                               subtype = "strain",
+                                                               type = "strain",
                                                                condense = FALSE)
 
 ```
@@ -400,7 +400,7 @@ adjusted_strain_and_serotype_specific_poisson_fit <-
 adjusted_strain_and_serotype_specific_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_strain_and_serotype_specific_poisson_fit,
                                                                filtered_S_pneumoniae_infant_strain,
-                                                               combined_strain_subtype = TRUE,
+                                                               combined_strain_type = TRUE,
                                                                condense = FALSE)
 
 ```
@@ -423,7 +423,7 @@ adjusted_strain_and_serotype_specific_negbin_fit <-
 adjusted_strain_and_serotype_specific_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_strain_and_serotype_specific_negbin_fit,
                                                                filtered_S_pneumoniae_infant_strain,
-                                                               combined_strain_subtype = TRUE,
+                                                               combined_strain_type = TRUE,
                                                                condense = FALSE)
 
 ```
@@ -507,14 +507,14 @@ model_outputs <- list(
 )
 
 label_list <- list(
-  "categorisation",
-  "categorisation",
-  "categorisation",
-  "categorisation",
-  "categorisation",
-  "categorisation",
-  "categorisation",
-  "categorisation",
+  "type",
+  "type",
+  "type",
+  "type",
+  "type",
+  "type",
+  "type",
+  "type",
   "combined",
   "combined"
 )
@@ -709,15 +709,15 @@ ggsave(full_strain_and_serotype_validation_plot,
 best_fitting_output <- 
   progressionEstimation::process_progression_rate_model_output(full_adjusted_strain_and_serotype_specific_poisson_fit,
                                                                S_pneumoniae_infant_strain,
-                                                               combined_strain_subtype = TRUE) %>%
-    dplyr::mutate("categorisation" = S_pneumoniae_infant_strain$categorisation) %>%
+                                                               combined_strain_type = TRUE) %>%
+    dplyr::mutate("type" = S_pneumoniae_infant_strain$type) %>%
     dplyr::mutate("classification" = dplyr::case_when(
-        categorisation %in% vaccine_types[["PCV7"]] ~ "PCV7",
-        categorisation %in% vaccine_types[["PCV10"]] ~ "PCV10",
-        categorisation %in% vaccine_types[["PCV13"]] ~ "PCV13",
-        categorisation %in% vaccine_types[["PCV15"]] ~ "PCV15",
-        categorisation %in% vaccine_types[["PCV20"]] ~ "PCV20",
-        categorisation %in% vaccine_types[["PPV23"]] ~ "PPV23",
+        type %in% vaccine_types[["PCV7"]] ~ "PCV7",
+        type %in% vaccine_types[["PCV10"]] ~ "PCV10",
+        type %in% vaccine_types[["PCV13"]] ~ "PCV13",
+        type %in% vaccine_types[["PCV15"]] ~ "PCV15",
+        type %in% vaccine_types[["PCV20"]] ~ "PCV20",
+        type %in% vaccine_types[["PPV23"]] ~ "PPV23",
         TRUE ~ "No PCV"
       )
     ) %>%
@@ -744,7 +744,7 @@ best_fitting_output %<>%
 # Plot
 (full_invasiveness_plot <-
   progressionEstimation::plot_progression_rates(best_fitting_output,
-                                                subtype = "combined",
+                                                type = "combined",
                                                 unit_time = "year",
                                                 type_name = "Serotype",
                                                 colour_col = "classification",
@@ -772,16 +772,16 @@ best_fitting_output %<>%
   dplyr::ungroup() %>%
   dplyr::filter(num_observations >= 10) %>%
   dplyr::group_by(strain) %>%
-  dplyr::mutate(num_serotypes = dplyr::n_distinct(categorisation)) %>%
+  dplyr::mutate(num_serotypes = dplyr::n_distinct(type)) %>%
   dplyr::ungroup() %>%
-  dplyr::group_by(categorisation) %>%
+  dplyr::group_by(type) %>%
   dplyr::mutate(num_strains = dplyr::n_distinct(strain)) %>%
   dplyr::ungroup()
 
 # Plot
 (invasiveness_plot <-
   progressionEstimation::plot_progression_rates(best_fitting_output,
-                                                subtype = "combined",
+                                                type = "combined",
                                                 unit_time = "year",
                                                 type_name = "Serotype",
                                                 colour_col = "classification",
@@ -805,29 +805,29 @@ strain_and_serotype_levels <-
 
 serotype_levels <-
   best_fitting_output %>%
-    dplyr::select(categorisation,classification) %>%
+    dplyr::select(type,classification) %>%
     dplyr::distinct() %>%
     dplyr::group_by(classification) %>%
-    dplyr::arrange(mixedrank(categorisation),
+    dplyr::arrange(mixedrank(type),
                    .by_group = TRUE) %>%
     dplyr::ungroup() %>%
-    dplyr::select(categorisation) %>%
+    dplyr::select(type) %>%
     dplyr::pull()
 
 best_fitting_output %<>%
   dplyr::mutate(combined = factor(combined, levels = strain_and_serotype_levels)) %>%
-  dplyr::mutate(categorisation = factor(categorisation, levels = serotype_levels))
+  dplyr::mutate(type = factor(type, levels = serotype_levels))
 
 (serotype_invasiveness_plot <-
   progressionEstimation::plot_progression_rates(best_fitting_output %>%
                                                   dplyr::filter(num_strains > 1),
-                                                subtype = "combined",
+                                                type = "combined",
                                                 unit_time = "year",
                                                 type_name = "Serotype",
                                                 colour_col = "classification",
                                                 colour_palette = vaccine_colours,
                                                 use_sample_size = TRUE) +
-                                                facet_wrap(.~categorisation,
+                                                facet_wrap(.~type,
                                                            scales = 'free_x'))
 
 ggsave(serotype_invasiveness_plot,
@@ -854,7 +854,7 @@ best_fitting_output %<>%
 (strain_invasiveness_plot <-
   progressionEstimation::plot_progression_rates(best_fitting_output %>%
                                                   dplyr::filter(num_serotypes > 1),
-                                                subtype = "combined",
+                                                type = "combined",
                                                 unit_time = "year",
                                                 type_name = "Serotype",
                                                 colour_col = "classification",
@@ -901,8 +901,8 @@ sensitivity_S_pneumoniae_infant_strain %<>%
     dplyr::mutate(study = factor(study, levels = studies_by_size[studies_by_size %in% unique(sensitivity_S_pneumoniae_infant_strain$study)]))
 
 sensitivity_S_pneumoniae_infant_strain %<>%
-    dplyr::mutate(categorisation = factor(categorisation,
-                                          levels = serotype_by_count[serotype_by_count %in% unique(sensitivity_S_pneumoniae_infant_strain$categorisation)])) %>%
+    dplyr::mutate(type = factor(type,
+                                          levels = serotype_by_count[serotype_by_count %in% unique(sensitivity_S_pneumoniae_infant_strain$type)])) %>%
   dplyr::mutate(strain = factor(strain))
 
 # Generate input for serotype models
@@ -913,7 +913,7 @@ sensitivity_infant_serotype_invasiveness <-
 # Generate input for strain models
 sensitivity_infant_strain_invasiveness <- 
   progressionEstimation::process_input_data(sensitivity_S_pneumoniae_infant_strain,
-                                            subtype = "strain",
+                                            type = "strain",
                                             condense = FALSE)
 
 # Generate input for strain and serotype models
@@ -984,7 +984,7 @@ sensitivity_adjusted_strain_specific_poisson_fit <-
 sensitivity_adjusted_strain_specific_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_specific_poisson_fit,
                                                                sensitivity_S_pneumoniae_infant_strain,
-                                                               subtype = "strain",
+                                                               type = "strain",
                                                                condense = FALSE)
 
 ```
@@ -1005,7 +1005,7 @@ sensitivity_adjusted_strain_specific_negbin_fit <-
 sensitivity_adjusted_strain_specific_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_specific_negbin_fit,
                                                                sensitivity_S_pneumoniae_infant_strain,
-                                                               subtype = "strain",
+                                                               type = "strain",
                                                                condense = FALSE)
 
 ```
@@ -1121,7 +1121,7 @@ sensitivity_adjusted_strain_and_serotype_specific_poisson_fit <-
 sensitivity_adjusted_strain_and_serotype_specific_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_and_serotype_specific_poisson_fit,
                                                                sensitivity_S_pneumoniae_infant_strain,
-                                                               combined_strain_subtype = TRUE,
+                                                               combined_strain_type = TRUE,
                                                                condense = FALSE)
 
 ```
@@ -1142,7 +1142,7 @@ sensitivity_adjusted_strain_and_serotype_specific_negbin_fit <-
 sensitivity_adjusted_strain_and_serotype_specific_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_and_serotype_specific_negbin_fit,
                                                                sensitivity_S_pneumoniae_infant_strain,
-                                                               combined_strain_subtype = TRUE,
+                                                               combined_strain_type = TRUE,
                                                                condense = FALSE)
 
 ```

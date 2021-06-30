@@ -30,7 +30,7 @@ process_input_xlsx <- function(fn = "progression_estimation_input.xlsx", use_str
     ) %>%
     tidyr::drop_na() %>%
     dplyr::mutate(study = factor(str_trim(study))) %>%
-    dplyr::mutate(categorisation = factor(str_trim(categorisation, side = "both"))) %>%
+    dplyr::mutate(type = factor(str_trim(type, side = "both"))) %>%
     dplyr::mutate(carriage = as.numeric(str_trim(carriage, side = "both"))) %>%
     dplyr::mutate(disease = as.numeric(str_trim(disease, side = "both"))) %>%
     dplyr::mutate(carriage_samples = as.numeric(str_trim(carriage_samples, side = "both"))) %>%
@@ -43,7 +43,7 @@ process_input_xlsx <- function(fn = "progression_estimation_input.xlsx", use_str
   return(input_df)
 }
 
-combine_rows <- function(df, col_name = "categorisation") {
+combine_rows <- function(df, col_name = "type") {
   df %<>%
     dplyr::group_by(study,!!! dplyr::syms(col_name)) %>%
       dplyr::mutate(carriage = sum(carriage)) %>%
@@ -56,45 +56,53 @@ combine_rows <- function(df, col_name = "categorisation") {
 #' Generate model input from input data frame
 #'
 #' @param input_df Data frame containing details of case-carrier studies
-#' @param subtype Name of column in input data frame used for subtyping information
-#' @param use_strain Boolean specifying whether strain information should be used in addition to subtype information
-#' @param combine_strain Boolean specifying whether strain information should be combined with subtype information
-#' @param condense Boolean specifying whether repeated entries of the same subtype should be condensed into a single entry
+#' @param type Name of column in input data frame used for typing information
+#' @param use_strain Boolean specifying whether strain information should be used in addition to type information
+#' @param combine_strain Boolean specifying whether strain information should be combined with type information
+#' @param condense Boolean specifying whether repeated entries of the same type should be condensed into a single entry
 #'
 #' @return A list of lists used as an input to stan models
 #' @export
 #'
-process_input_data <- function(input_df, subtype = "categorisation", use_strain = FALSE, combine_strain = FALSE, condense = FALSE) {
-  if (!(subtype %in% colnames(input_df))) {
-    stop("Subtype column not in input data")
+process_input_data <- function(input_df, type = "type", use_strain = FALSE, combine_strain = FALSE, condense = FALSE) {
+  if (!(type %in% colnames(input_df))) {
+    stop("Type column not in input data")
   }
   # Process input data
   if (combine_strain | use_strain) {
     input_df %<>%
-      tidyr::unite("combined",!!subtype,strain, sep='_', remove = FALSE) %>%
+      tidyr::unite("combined",!!type,strain, sep='_', remove = FALSE) %>%
       dplyr::mutate(combined = factor(combined))
     if (condense) {
       input_df <- combine_rows(input_df, col_name = "combined")
     }
     if (combine_strain) {
-      subtype = "combined"
+      type = "combined"
     } else if (use_strain) {
       input_df %<>% dplyr::select(-combined)
     }
   } else if (condense) {
     input_df <- combine_rows(input_df %>% dplyr::select(study,
-                                                        !!subtype,
+                                                        !!type,
                                                         carriage,
                                                         disease,
                                                         carriage_samples,
                                                         surveillance_population,
                                                         time_interval),
-                             col_name = subtype)
+                             col_name = type)
+  }
+  # Convert to factors
+  input_df %<>%
+    dplyr::mutate(study = factor(study)) %>%
+    dplyr::mutate((!!type) := factor(!!! dplyr::syms(type)))
+  if ("strain" %in% colnames(input_df)) {
+    input_df %<>%
+      dplyr::mutate(strain = factor(strain))
   }
   # Calculate input
   input_df <- as.data.frame(input_df)
   i_values <- as.integer(input_df$study)
-  j_values <- as.integer(input_df[, which(colnames(input_df) == subtype)])
+  j_values <- as.integer(input_df[, which(colnames(input_df) == type)])
   c_ij <- input_df$carriage
   d_ij <- input_df$disease
   n_i <- input_df$carriage_samples
@@ -139,8 +147,8 @@ process_input_data <- function(input_df, subtype = "categorisation", use_strain 
 #' @param type_specific Boolean specifying whether progression rates vary between types
 #' @param location_adjustment Boolean specifying whether progression rates vary between locations
 #' @param stat_model Whether progression to disease is "poisson" (Poisson process) or "negbin" (overdispersed negative binomial distribution)
-#' @param strain_as_primary_type Whether strain should be used as the primary determinant of progression rate, and the other subtype used as the secondary determinant
-#' @param strain_as_secondary_type Whether strain should be used as the secondary determinant of progression rate, and the other subtype used as the primary determinant
+#' @param strain_as_primary_type Whether strain should be used as the primary determinant of progression rate, and the other type used as the secondary determinant
+#' @param strain_as_secondary_type Whether strain should be used as the secondary determinant of progression rate, and the other type used as the primary determinant
 #' @param model_description Descriptive title of model
 #' @param num_chains Number of MCMCs to be run for inference
 #' @param num_iter Length of MCMCs
@@ -180,9 +188,9 @@ fit_progression_rate_model<-function(input_data,
   }
   # Adjust names if modifying serotype by strain
   if (strain_as_primary_type & type_specific) {
-    model_prefix = paste0(model_prefix,"_strain_modified_by_subtype")
+    model_prefix = paste0(model_prefix,"_strain_modified_by_type")
   } else if (strain_as_secondary_type & type_specific) {
-    model_prefix = paste0(model_prefix,"_subtype_modified_by_strain")
+    model_prefix = paste0(model_prefix,"_type_modified_by_strain")
   }
   # Complete model name
   model_name = paste0(model_prefix,'_',model_suffix)
@@ -223,37 +231,37 @@ get_lower<-function(parameter,model) {
 #'
 #' @param model_output Stanfit object returned by model fitting
 #' @param input_df Data frame used as input to model fitting
-#' @param subtype Name of column used to define subtypes
-#' @param strain_as_primary_type Whether strain was used as the primary determinant of progression rate, and the other subtype used as the secondary determinant
-#' @param strain_as_secondary_type Whether strain was used as the secondary determinant of progression rate, and the other subtype used as the primary determinant
-#' @param combined_strain_subtype Whether strain and subtype were jointly used to subdivide the population
-#' @param condense Whether data should be reclassified by combining repeated entries for the same subtype to match with model input
+#' @param type Name of column used to define types
+#' @param strain_as_primary_type Whether strain was used as the primary determinant of progression rate, and the other type used as the secondary determinant
+#' @param strain_as_secondary_type Whether strain was used as the secondary determinant of progression rate, and the other type used as the primary determinant
+#' @param combined_strain_type Whether strain and type were jointly used to subdivide the population
+#' @param condense Whether data should be reclassified by combining repeated entries for the same type to match with model input
 #'
 #' @return A data frame
 #' @export
 #'
 process_progression_rate_model_output<-function(model_output,
                                                 input_df,
-                                                subtype = "categorisation",
+                                                type = "type",
                                                 strain_as_primary_type = FALSE,
                                                 strain_as_secondary_type = FALSE,
-                                                combined_strain_subtype = FALSE,
+                                                combined_strain_type = FALSE,
                                                 condense = FALSE) {
   # Add model name
   input_df %<>%
     dplyr::mutate(model_name = model_output@model_name)
   # Process input data
-  if (strain_as_primary_type | strain_as_secondary_type | combined_strain_subtype) {
+  if (strain_as_primary_type | strain_as_secondary_type | combined_strain_type) {
     input_df %<>%
-      tidyr::unite("combined",!!subtype,strain, sep='_', remove = FALSE) %>%
+      tidyr::unite("combined",!!type,strain, sep='_', remove = FALSE) %>%
       dplyr::mutate(combined = factor(combined))
-    if (combined_strain_subtype) {
-      subtype = "combined"
+    if (combined_strain_type) {
+      type = "combined"
     }
     input_df %<>%
       dplyr::select(model_name,
                     study,
-                    !!subtype,
+                    !!type,
                     carriage,
                     disease,
                     carriage_samples,
@@ -267,7 +275,7 @@ process_progression_rate_model_output<-function(model_output,
       input_df <- combine_rows(input_df %>%
                                  dplyr::select(model_name,
                                                study,
-                                               !!subtype,
+                                               !!type,
                                                carriage,
                                                disease,
                                                carriage_samples,
@@ -279,18 +287,18 @@ process_progression_rate_model_output<-function(model_output,
       input_df <- combine_rows(input_df %>%
                                  dplyr::select(model_name,
                                                study,
-                                               !!subtype,
+                                               !!type,
                                                carriage,
                                                disease,
                                                carriage_samples,
                                                surveillance_population,
                                                time_interval),
-                               col_name = subtype)
+                               col_name = type)
     }
   }
   # Extract factor levels
   i_levels = levels(input_df %>% dplyr::pull(study))
-  j_levels = levels(input_df %>% dplyr::pull(!!subtype))
+  j_levels = levels(input_df %>% dplyr::pull(!!type))
   if (strain_as_primary_type | strain_as_secondary_type) {
     k_levels = levels(input_df %>% dplyr::pull(strain))
   }
@@ -330,7 +338,7 @@ process_progression_rate_model_output<-function(model_output,
     "nu_lower" = get_lower(nu_name,model_output),
     "nu_upper" = get_upper(nu_name,model_output)
   )
-  input_df %<>% dplyr::left_join(progression_rates_df, by = setNames("type",subtype))
+  input_df %<>% dplyr::left_join(progression_rates_df, by = setNames("type",type))
 
   if ("nu_k" %in% model_output@model_pars) {
     secondary_progression_rates_df <- data.frame(
@@ -379,7 +387,7 @@ process_progression_rate_model_output<-function(model_output,
 #' @return ggplot2 plot
 #' @export
 #'
-plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_col = "categorisation", legend = TRUE, just_legend = FALSE) {
+plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_col = "type", legend = TRUE, just_legend = FALSE) {
 
   if (!("carriage_prediction" %in% colnames(model_output_df))) {
     stop("Need to include model output in data frame for plotting")
@@ -482,9 +490,9 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_co
 #' Plot progression rate estimates
 #'
 #' @param model_output_df Data frame include input data and model fit output
-#' @param subtype Name of column to be used on x axis
+#' @param type Name of column to be used on x axis
 #' @param unit_time String specifying the time unit for the y axis label
-#' @param type_name Name of categorisation scheme for x axis label
+#' @param type_name Name of typing scheme for x axis label
 #' @param colour_col Name of the column used for colour scheme
 #' @param colour_palette Named vector to be used for colour scheme
 #' @param use_sample_size Whether to change point style based on sample size
@@ -492,13 +500,13 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_co
 #' @return
 #' @export
 #'
-plot_progression_rates <- function(model_output_df, subtype = "categorisation", unit_time = "unit time", type_name = "categorisation",
+plot_progression_rates <- function(model_output_df, type = "type", unit_time = "unit time", type_name = "type",
                                    colour_col = NULL, colour_palette = NULL, use_sample_size = FALSE) {
   if (!("carriage_prediction" %in% colnames(model_output_df))) {
     stop("Need to include model output in data frame for plotting")
   }
   progression_rate_values <- c("nu", "nu_lower", "nu_upper")
-  if (subtype == "strain" & "secondary_nu" %in% colnames(model_output_df)) {
+  if (type == "strain" & "secondary_nu" %in% colnames(model_output_df)) {
     progression_rate_values <- paste0("secondary_", progression_rate_values)
   }
   y_label_text = paste0("Progression rate (disease per carrier per ",unit_time,")")
@@ -508,13 +516,13 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
 
   if (use_sample_size) {
     model_output_df %<>%
-      dplyr::group_by(!!! dplyr::syms(subtype)) %>%
+      dplyr::group_by(!!! dplyr::syms(type)) %>%
       dplyr::mutate(num_observations = sum(carriage+disease)) %>%
       dplyr::ungroup()
   }
 
   model_output_df %<>%
-    dplyr::group_by(!!! dplyr::syms(subtype)) %>%
+    dplyr::group_by(!!! dplyr::syms(type)) %>%
     dplyr::slice_head(n=1) %>%
     dplyr::ungroup()
 
@@ -522,7 +530,7 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
     if (use_sample_size) {
       base_graph <-
         ggplot(model_output_df,
-               aes(x = get(subtype),
+               aes(x = get(!!type),
                    y = get(progression_rate_values[1]),
                    ymin = get(progression_rate_values[2]),
                    ymax = get(progression_rate_values[3]),
@@ -530,7 +538,7 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
     } else {
       base_graph <-
         ggplot(model_output_df,
-               aes(x = get(subtype),
+               aes(x = get(!!type),
                    y = get(progression_rate_values[1]),
                    ymin = get(progression_rate_values[2]),
                    ymax = get(progression_rate_values[3])))
@@ -539,7 +547,7 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
     if (use_sample_size) {
       base_graph <-
         ggplot(model_output_df,
-               aes(x = get(subtype),
+               aes(x = get(!!type),
                    y = get(progression_rate_values[1]),
                    ymin = get(progression_rate_values[2]),
                    ymax = get(progression_rate_values[3]),
@@ -549,7 +557,7 @@ plot_progression_rates <- function(model_output_df, subtype = "categorisation", 
     } else {
       base_graph <-
         ggplot(model_output_df,
-               aes(x = get(subtype),
+               aes(x = get(!!type),
                    y = get(progression_rate_values[1]),
                    ymin = get(progression_rate_values[2]),
                    ymax = get(progression_rate_values[3]),

@@ -615,6 +615,11 @@ ggsave(invasiveness_plot,
        height = 8,
        width = 8)
 
+write.csv(best_fitting_output,
+          file = "study_adjusted_type_specific_poisson_serotype_fit.csv",
+          quote = F,
+          row.names = F)
+
 ```
 
 ## Plot study-specific scale factors

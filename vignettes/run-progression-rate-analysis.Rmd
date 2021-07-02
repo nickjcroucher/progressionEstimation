@@ -30,6 +30,7 @@ require(loo)
 require(cowplot)
 require(ggrepel)
 require(xlsx)
+require(roxygen2)
 
 # Load stan package
 library(progressionEstimation)

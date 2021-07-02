@@ -11,7 +11,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
+```{r setup, echo=FALSE, warning=F, message=FALSE}
 # Load dependencies
 require(tidyverse)
 require(magrittr)

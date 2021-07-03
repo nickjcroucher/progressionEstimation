@@ -25,8 +25,8 @@ parameters {
   // log serotype invasiveness ~ U(-6,1)
   vector<lower=-6.0,upper=1.0>[j_max] log_nu_j;
 
-  // log GPSC invasiveness ~ U(3,-3)
-  vector<lower=-3.0,upper=3.0>[k_max] log_nu_k;
+  // log GPSC invasiveness ~ Cauchy
+  vector<lower=-pi()/2, upper=pi()/2>[k_max-1-1] log_nu_k;
 
   // negative binomial overdispersions
   real<lower=0.0,upper=10.0> phi_nb;
@@ -37,7 +37,9 @@ transformed parameters {
 
   // declare transformed parameters
   vector<lower=0,upper=10.0>[j_max] nu_j;
-  vector<lower=0.001,upper=1000.0>[k_max] nu_k;
+  vector[k_max] nu_k;
+  real mu_mod = 0; // position parameter of Cauchy for strain invasiveness
+  real tau_mod = 1; // scale parameter of Cauchy for strain invasiveness
 
   // calculate serotype invasiveness on a real scale
   for (j in 1:j_max) {
@@ -45,8 +47,9 @@ transformed parameters {
   }
 
   // calculate serotype invasiveness on a real scale
-  for (k in 1:k_max) {
-    nu_k[k] = pow(10, log_nu_k[k]);
+  nu_k[1] = 1;
+  for (k in 2:k_max) {
+    nu_k[k] = pow(10, mu_mod + tau_mod * tan(log_nu_k[k-1]));
   }
 
 }
@@ -66,9 +69,13 @@ model {
     // Get location adjustment
     int i = i_values[index];
 
+    // Calculate modification
+    if (k > 1) {
+      target += uniform_lpdf(log_nu_k[k-1] | -pi()/2, pi()/2);
+    }
+
     // calculate prior probability
     target += uniform_lpdf( log_nu_j[j] | -6, 1);
-    target += uniform_lpdf( log_nu_k[k] | -3, 3);
     target += beta_lpdf(rho_ij[index] | 1, 1);
     target += uniform_lpdf(phi_nb | 0, 10);
 

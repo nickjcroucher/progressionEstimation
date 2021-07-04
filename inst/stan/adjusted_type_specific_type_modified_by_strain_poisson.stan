@@ -26,7 +26,7 @@ parameters {
   vector<lower=-6.0,upper=1.0>[j_max] log_nu_j;
 
   // log GPSC invasiveness ~ Cauchy
-  vector<lower=-pi()/2, upper=pi()/2>[k_max-1] log_nu_k;
+  vector<lower=-3, upper=3>[k_max-1] log_nu_k;
 
   // dataset adjustment
   vector<lower=-pi()/2, upper=pi()/2>[i_max-1] delta_varying;
@@ -52,7 +52,7 @@ transformed parameters {
   // calculate serotype invasiveness on a real scale
   nu_k[1] = 1;
   for (k in 2:k_max) {
-    nu_k[k] = pow(10, mu_mod + tau_mod * tan(log_nu_k[k-1]));
+    nu_k[k] = pow(10, log_nu_k[k-1]);
   }
 
   // add constant to delta vector
@@ -78,7 +78,7 @@ model {
     // Get location adjustment
     int i = i_values[index];
     if (i > 1) {
-      target += uniform_lpdf(delta_varying[i-1] | -pi()/2, pi()/2);
+      target += uniform_lpdf(delta_varying[i-1] | -3, 3);
     }
 
     // Get modifier

@@ -26,7 +26,7 @@ parameters {
   vector<lower=-6.0,upper=1.0>[k_max] log_nu_k;
 
   // log serotype invasiveness ~ Cauchy
-  vector<lower=-pi()/2, upper=pi()/2>[j_max-1] log_nu_j;
+  vector<lower=-3, upper=3>[j_max-1] log_nu_j;
 
 }
 
@@ -41,7 +41,7 @@ transformed parameters {
   // calculate serotype invasiveness on a real scale
   nu_j[1] = 1;
   for (j in 2:j_max) {
-    nu_j[j] = pow(10, mu_mod + tau_mod * tan(log_nu_j[j-1]));
+    nu_j[j] = pow(10, log_nu_j[j-1]);
   }
 
   // calculate serotype invasiveness on a real scale
@@ -68,7 +68,7 @@ model {
 
     // Calculate modification
     if (j > 1) {
-      target += uniform_lpdf(log_nu_j[j-1] | -pi()/2, pi()/2);
+      target += uniform_lpdf(log_nu_j[j-1] | -3, 3);
     }
 
     // calculate prior probability

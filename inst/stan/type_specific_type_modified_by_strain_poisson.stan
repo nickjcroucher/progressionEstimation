@@ -25,8 +25,8 @@ parameters {
   // log serotype invasiveness ~ U(-6,0)
   vector<lower=-6.0,upper=1.0>[j_max] log_nu_j;
 
-  // log GPSC invasiveness ~ Cauchy
-  vector<lower=-pi()/2, upper=pi()/2>[k_max-1] log_nu_k;
+  // log GPSC invasiveness ~ Cauchy - use 1.537475/tau_mod for truncation - 1.2 works
+  vector<lower=-1.25, upper=1.25>[k_max-1] log_nu_k;
 
 }
 
@@ -36,7 +36,7 @@ transformed parameters {
   vector<lower=0,upper=10.0>[j_max] nu_j;
   vector[k_max] nu_k;
   real mu_mod = 0; // position parameter of Cauchy for strain invasiveness
-  real tau_mod = 0.1; // scale parameter of Cauchy for strain invasiveness
+  real tau_mod = 0.5; // scale parameter of Cauchy for strain invasiveness
 
   // calculate serotype invasiveness on a real scale
   for (j in 1:j_max) {

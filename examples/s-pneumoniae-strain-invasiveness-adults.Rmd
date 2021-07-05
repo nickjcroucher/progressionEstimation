@@ -11,7 +11,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
+```{r setup, echo=FALSE, warning=F, message=FALSE}
 # Load dependencies
 require(tidyverse)
 require(magrittr)
@@ -22,6 +22,7 @@ require(cowplot)
 require(ggrepel)
 require(xlsx)
 require(gtools)
+require(roxygen2)
 # Load stan package
 library(progressionEstimation)
 pkgbuild::compile_dll()

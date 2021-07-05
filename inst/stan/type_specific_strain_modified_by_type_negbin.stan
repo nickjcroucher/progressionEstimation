@@ -26,7 +26,7 @@ parameters {
   vector<lower=-6.0,upper=1.0>[k_max] log_nu_k;
 
   // log serotype invasiveness ~ Cauchy
-  vector<lower=-pi()/2, upper=pi()/2>[j_max-1] log_nu_j;
+  vector<lower=-1.25, upper=1.25>[j_max] log_nu_j;
 
   // negative binomial overdispersions
   real<lower=0.0,upper=10.0> phi_nb;
@@ -38,12 +38,11 @@ transformed parameters {
   // declare transformed parameters
   vector<lower=0,upper=10.0>[k_max] nu_k;
   vector[j_max] nu_j;
-  real mu_mod = 0; // position parameter of Cauchy for type invasiveness
-  real tau_mod = 1; // scale parameter of Cauchy for type invasiveness
+  real mu_mod = 0; // position parameter of Cauchy for strain invasiveness
+  real tau_mod = 0.5; // scale parameter of Cauchy for strain invasiveness
 
   // calculate serotype invasiveness on a real scale
-  nu_j[1] = 1;
-  for (j in 2:j_max) {
+  for (j in 1:j_max) {
     nu_j[j] = pow(10, mu_mod + tau_mod * tan(log_nu_j[j]));
   }
 
@@ -78,6 +77,7 @@ model {
     target += uniform_lpdf( log_nu_k[k] | -6, 1);
     target += beta_lpdf(rho_ij[index] | 1, 1);
     target += uniform_lpdf(phi_nb | 0, 10);
+    target += uniform_lpdf(log_nu_j[j] | -1.25, 1.25);
 
     // calculate likelihood given data
     target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);

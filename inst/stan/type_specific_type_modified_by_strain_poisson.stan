@@ -25,8 +25,8 @@ parameters {
   // log serotype invasiveness ~ U(-6,0)
   vector<lower=-6.0,upper=1.0>[j_max] log_nu_j;
 
-  // log GPSC invasiveness ~ Cauchy - use 1.537475/tau_mod for truncation - 1.2 works
-  vector<lower=-1.25, upper=1.25>[k_max-1] log_nu_k;
+  // log GPSC invasiveness ~ Cauchy
+  vector<lower=-1.25, upper=1.25>[k_max] log_nu_k;
 
 }
 
@@ -44,9 +44,8 @@ transformed parameters {
   }
 
   // calculate serotype invasiveness on a real scale
-  nu_k[1] = 1;
-  for (k in 2:k_max) {
-    nu_k[k] = pow(10, mu_mod + tau_mod * tan(log_nu_k[k-1]));
+  for (k in 1:k_max) {
+    nu_k[k] = pow(10, mu_mod + tau_mod * tan(log_nu_k[k]));
   }
 
 }
@@ -66,14 +65,10 @@ model {
     // Get location adjustment
     int i = i_values[index];
 
-    // Calculate modification
-    if (k > 1) {
-      target += uniform_lpdf(log_nu_k[k-1] | -pi()/2, pi()/2);
-    }
-
     // calculate prior probability
     target += uniform_lpdf(log_nu_j[j] | -6, 1);
     target += beta_lpdf(rho_ij[index] | 1, 1);
+    target += uniform_lpdf(log_nu_k[k] | -1.25, 1.25);
 
     // calculate likelihood given data
     target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);

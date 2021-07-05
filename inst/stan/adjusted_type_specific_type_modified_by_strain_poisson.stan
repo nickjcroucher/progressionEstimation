@@ -26,7 +26,7 @@ parameters {
   vector<lower=-6.0,upper=1.0>[j_max] log_nu_j;
 
   // log GPSC invasiveness ~ Cauchy
-  vector<lower=-pi()/2, upper=pi()/2>[k_max-1] log_nu_k;
+  vector<lower=-1.25, upper=1.25>[k_max] log_nu_k;
 
   // dataset adjustment
   vector<lower=-pi()/2, upper=pi()/2>[i_max-1] delta_varying;
@@ -40,7 +40,7 @@ transformed parameters {
   real mu = 0; // position parameter of Cauchy for delta
   real tau = 2; // scale parameter of Cauchy for delta
   real mu_mod = 0; // position parameter of Cauchy for strain invasiveness
-  real tau_mod = 1; // scale parameter of Cauchy for strain invasiveness
+  real tau_mod = 0.5; // scale parameter of Cauchy for strain invasiveness
   vector<lower=0,upper=10.0>[j_max] nu_j;
   vector[k_max] nu_k;
 
@@ -50,9 +50,8 @@ transformed parameters {
   }
 
   // calculate serotype invasiveness on a real scale
-  nu_k[1] = 1;
-  for (k in 2:k_max) {
-    nu_k[k] = pow(10, mu_mod + tau_mod * tan(log_nu_k[k-1]));
+  for (k in 1:k_max) {
+    nu_k[k] = pow(10, mu_mod + tau_mod * tan(log_nu_k[k]));
   }
 
   // add constant to delta vector
@@ -81,14 +80,10 @@ model {
       target += uniform_lpdf(delta_varying[i-1] | -pi()/2, pi()/2);
     }
 
-    // Get modifier
-    if (k > 1) {
-      target += uniform_lpdf(log_nu_k[k-1] | -pi()/2, pi()/2);
-    }
-
     // calculate prior probability
     target += uniform_lpdf( log_nu_j[j] | -6, 1);
     target += beta_lpdf(rho_ij[index] | 1, 1);
+    target += uniform_lpdf(log_nu_k[k] | -1.25, 1.25);
 
     // calculate likelihood given data
     target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);

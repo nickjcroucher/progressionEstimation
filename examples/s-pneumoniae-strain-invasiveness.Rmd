@@ -101,6 +101,16 @@ serotype_by_count <-
     dplyr::select(type) %>%
     dplyr::pull()
 
+strain_by_count <-
+  S_pneumoniae_infant_strain %>%
+    group_by(strain) %>%
+    dplyr::mutate(total_count = sum(carriage)+sum(disease)) %>%
+    dplyr::select(strain,total_count) %>%
+    dplyr::distinct() %>%
+    dplyr::arrange(desc(total_count)) %>%
+    dplyr::select(strain) %>%
+    dplyr::pull()
+
 S_pneumoniae_infant_strain %<>%
   dplyr::mutate(type = factor(type, levels = serotype_by_count))
 

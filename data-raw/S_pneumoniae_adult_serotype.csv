@@ -1,4 +1,4 @@
-"","agegrp","DS","Serogroup","Serotype","carriage","disease","n.swab","N","time.int","carr.prev","carr.prev.low","carr.prev.high","lambda","lambda.low","lambda.high","invasiveness","invasiveness.low","invasiveness.high","vaccinationera"
+"","agegrp","study","Serogroup","type","carriage","disease","carriage_samples","surveillance_population","time_interval","carr.prev","carr.prev.low","carr.prev.high","lambda","lambda.low","lambda.high","invasiveness","invasiveness.low","invasiveness.high","vaccinationera"
 "1","adults","Alabama.pre.PCV","VT10","1",5,4,827,232373,3.4,0.00604596756783378,0.00266378865726641,0.0140355320594771,4,1.62,10.24,0.00154026256964233,0.000280047739934969,0.00462078770892699,"pre.PCV"
 "2","adults","Alabama.pre.PCV","NVT","13",6,6,827,232373,3.4,0.00725515924601981,0.00340556220072538,0.0157051126881331,6,2.81,13.06,0.00110018754974545,0.000400068199907436,0.0039006649490975,"pre.PCV"
 "3","adults","Alabama.pre.PCV","VT7","14",20,4,827,232373,3.4,0.0241838284894329,0.0157667344081218,0.0370592442520189,4,1.62,10.24,0.000300051149930577,0,0.000700119349838013,"pre.PCV"

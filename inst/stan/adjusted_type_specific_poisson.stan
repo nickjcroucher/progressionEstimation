@@ -24,7 +24,7 @@ parameters {
   vector<lower=-6,upper=1.0>[j_max] log_nu_j;
 
   // dataset adjustment
-  vector<lower=-pi()/2, upper=pi()/2>[i_max-1] delta_varying;
+  vector<lower=-pi()/2, upper=pi()/2>[i_max] delta_varying;
 
 }
 
@@ -33,7 +33,7 @@ transformed parameters {
   // declare transformed parameters
   vector[i_max] delta_i;
   real mu = 0; // position parameter of Cauchy for delta
-  real tau = 2; // scale parameter of Cauchy for delta
+  real tau = 4; // scale parameter of Cauchy for delta
 
   // calculate invasiveness on a real scale
   vector<lower=0,upper=10.0>[j_max] nu_j;
@@ -42,9 +42,8 @@ transformed parameters {
   }
 
   // add constant to delta vector
-  delta_i[1] = 1;
-  for (i in 2:i_max) {
-    delta_i[i] = pow(10, mu + tau * tan(delta_varying[i-1]));
+  for (i in 1:i_max) {
+    delta_i[i] = pow(10, mu + tau * tan(delta_varying[i]));
   }
 
 }
@@ -60,9 +59,7 @@ model {
 
     // Get location adjustment
     int i = i_values[index];
-    if (i > 1) {
-      target += uniform_lpdf(delta_varying[i-1] | -pi()/2, pi()/2);
-    }
+    target += uniform_lpdf(delta_varying[i] | -pi()/2, pi()/2);
 
     // calculate prior probability
     target += uniform_lpdf( log_nu_j[j] | -6, 1);

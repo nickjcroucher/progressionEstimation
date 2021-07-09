@@ -502,7 +502,7 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_co
 #'
 plot_progression_rates <- function(model_output_df, type = "type", unit_time = "unit time", type_name = "type",
                                    colour_col = NULL, colour_palette = NULL, use_sample_size = FALSE) {
-  if (!("carriage_prediction" %in% colnames(model_output_df))) {
+  if (!("study" %in% colnames(model_output_df))) {
     stop("Need to include model output in data frame for plotting")
   }
   progression_rate_values <- c("nu", "nu_lower", "nu_upper")
@@ -729,4 +729,84 @@ validate_progression_estimation_dataset <- function(df) {
   if (max(n_distinct_values %>% dplyr::n_distinct()) > n_distinct_values[1]) {
     stop("Each study have a unique name associated with consistent carriage sample, surveillance population and time interval values")
   }
+}
+
+#' Generate invasiveness estimates specific to a particular study within a meta-analysis
+#'
+#' @param study Study for which invasiveness should be estimated
+#' @param df Data frame containing input data used for model fitting
+#' @param fit stan object corresponding to model fit
+#' @param type Column name used to specify types for which invasiveness was estimated
+#' @param use_strain_invasiveness Whether invasiveness should be returned for strains, if invasiveness was estimated for type and strain
+#'
+#' @return Data frame containing adjusted estimates of invasiveness for a study
+#' @export
+#'
+#' @examples
+get_type_invasiveness_for_study <- function(study = NULL, df, fit,  type = "type", use_strain_invasiveness = FALSE) {
+
+  # Check study name in list
+  if (!(study %in% levels(df$study))) {
+    stop(paste(study,"not found in list of studies:",levels(df$study)))
+  }
+
+  # Check model has a study adjustment
+  if (!("delta_i") %in% colnames(df)) {
+    stop("Function only necessary if a model features a study-specific adjustment factor")
+  }
+
+  # Get level
+  i_level <- grep(study,levels(df$study))
+
+  # Extract MCMC values
+  invasiveness_param <- "nu"
+  if ("nu_j" %in% fit@model_pars) {
+    invasiveness_param <- "nu_j"
+  }
+  if (use_strain_invasiveness) {
+    invasiveness_param <- "nu_k"
+  }
+  overall_invasiveness_mat <-
+    as.matrix(fit, pars = c(invasiveness_param))
+  study_adjustment <-
+    as.matrix(fit, pars = c(paste0("delta_i[",i_level,"]")))
+
+  # Get product
+  study_adjusted_invasiveness_mat <-
+    t(t(overall_invasiveness_mat) * as.vector(study_adjustment))
+
+  # Create the output data frame
+  study_invasiveness_df <- df[df$study == study,]
+
+  # Invasiveness values
+  invasiveness_df <-
+    data.frame(
+      "nu" = apply(study_adjusted_invasiveness_mat, 2, mean),
+      "nu_lower" = apply(study_adjusted_invasiveness_mat, 2, quantile, probs = c(0.025)),
+      "nu_upper" = apply(study_adjusted_invasiveness_mat, 2, quantile, probs = c(0.975))
+    )
+  if (use_strain_invasiveness) {
+    invasiveness_df[["strain"]] <- levels(df$strain)
+  } else {
+    invasiveness_df[[type]] <- levels(df[[type]])
+  }
+  invasiveness_df[["study"]] <- study
+
+  # Add sample size
+  if (use_strain_invasiveness) {
+    study_invasiveness_df %<>%
+      dplyr::left_join(
+        invasiveness_df,
+        by = c("study","strain")
+      )
+  } else {
+    study_invasiveness_df %<>%
+      dplyr::left_join(
+        invasiveness_df,
+        by = c("study",get("type"))
+      )
+  }
+
+  # return
+  return(study_invasiveness_df)
 }

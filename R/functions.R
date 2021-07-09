@@ -502,7 +502,7 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_co
 #'
 plot_progression_rates <- function(model_output_df, type = "type", unit_time = "unit time", type_name = "type",
                                    colour_col = NULL, colour_palette = NULL, use_sample_size = FALSE) {
-  if (!("study" %in% colnames(model_output_df))) {
+  if (!(any(grepl("nu",colnames(model_output_df))))) {
     stop("Need to include model output in data frame for plotting")
   }
   progression_rate_values <- c("nu", "nu_lower", "nu_upper")
@@ -670,7 +670,7 @@ combine_with_existing_datasets <- function(new_df, old_df) {
     new_df %>% dplyr::select(study) %>% dplyr::distinct() %>% dplyr::pull()
   old_studies <-
     old_df %>% dplyr::select(study) %>% dplyr::distinct() %>% dplyr::pull()
-  if (new_studies %in% old_studies) {
+  if (length(intersect(new_studies,old_studies)) < 1) {
     stop("Names of studies in new data must not be present in old studies")
   }
   combined_df <- dplyr::bind_rows(old_df, new_df)
@@ -733,9 +733,9 @@ validate_progression_estimation_dataset <- function(df) {
 
 #' Generate invasiveness estimates specific to a particular study within a meta-analysis
 #'
-#' @param study Study for which invasiveness should be estimated
 #' @param df Data frame containing input data used for model fitting
 #' @param fit stan object corresponding to model fit
+#' @param study Study for which invasiveness should be estimated
 #' @param type Column name used to specify types for which invasiveness was estimated
 #' @param use_strain_invasiveness Whether invasiveness should be returned for strains, if invasiveness was estimated for type and strain
 #'
@@ -743,7 +743,7 @@ validate_progression_estimation_dataset <- function(df) {
 #' @export
 #'
 #' @examples
-get_type_invasiveness_for_study <- function(study = NULL, df, fit,  type = "type", use_strain_invasiveness = FALSE) {
+get_type_invasiveness_for_study <- function(df, fit, study = NULL, type = "type", use_strain_invasiveness = FALSE) {
 
   # Check study name in list
   if (!(study %in% levels(df$study))) {
@@ -751,7 +751,7 @@ get_type_invasiveness_for_study <- function(study = NULL, df, fit,  type = "type
   }
 
   # Check model has a study adjustment
-  if (!("delta_i") %in% colnames(df)) {
+  if (!("delta_i") %in% fit@model_pars) {
     stop("Function only necessary if a model features a study-specific adjustment factor")
   }
 

@@ -44,7 +44,7 @@ validation_plots <-
   cowplot::plot_grid(
     plotlist = list(
       plot(model_fit, plotfun = "rhat", binwidth = 0.00005),
-      rstan::traceplot(fit, pars = "lp__")
+      rstan::traceplot(model_fit, pars = "lp__")
     ),
     labels= "AUTO"
   )

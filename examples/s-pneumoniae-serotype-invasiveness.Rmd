@@ -944,6 +944,147 @@ ggplot(combined_invasiveness_df,
 
 ```
 
+This comparison can be extended to location-specific invasiveness factors, which incorporate the uncertainty of the study-specific adjustment factor:
+
+``` {r Comparison with location-specific invasiveness}
+
+netherland_pre_pcv_invasiveness_df <-
+  progressionEstimation::get_type_invasiveness_for_study(S_pneumoniae_infant_serotype,
+                         full_adjusted_type_specific_poisson_fit,
+                         study = "Netherlands.post.PCV10")
+
+ netherland_pre_pcv_invasiveness_df %<>%
+      dplyr::mutate("classification" = dplyr::case_when(
+          gsub("_pv","",type) %in% vaccine_types[["PCV7"]] ~ "PCV7",
+          gsub("_pv","",type) %in% vaccine_types[["PCV10"]] ~ "PCV10",
+          gsub("_pv","",type) %in% vaccine_types[["PCV13"]] ~ "PCV13",
+          gsub("_pv","",type) %in% vaccine_types[["PCV15"]] ~ "PCV15",
+          gsub("_pv","",type) %in% vaccine_types[["PCV20"]] ~ "PCV20",
+          gsub("_pv","",type) %in% vaccine_types[["PPV23"]] ~ "PPV23",
+          TRUE ~ "No PCV"
+        )
+      ) %>%
+      dplyr::mutate(classification = factor(classification, levels = c("PCV7",
+                                                                       "PCV10",
+                                                                       "PCV13",
+                                                                       "PCV15",
+                                                                       "PCV20",
+                                                                       "PPV23",
+                                                                       "No PCV")))
+
+# Order serotypes
+serotype_levels <-
+  netherland_pre_pcv_invasiveness_df %>%
+    dplyr::select(type,classification) %>%
+    dplyr::distinct() %>%
+    group_by(classification) %>%
+    dplyr::arrange(mixedrank(type),
+                   .by_group = TRUE) %>%
+    ungroup() %>%
+    dplyr::select(type) %>%
+    dplyr::pull()
+
+netherland_pre_pcv_invasiveness_df %<>%
+  dplyr::mutate(type = factor(type, levels = serotype_levels))
+
+# Plot
+(netherlands_invasiveness_plot <-
+  progressionEstimation::plot_progression_rates(netherland_pre_pcv_invasiveness_df,
+                                                unit_time = "year",
+                                                type_name = "Serotype",
+                                                colour_col = "classification",
+                                                colour_palette = vaccine_colours,
+                                                use_sample_size = TRUE))
+
+```
+
+This subset of serotypes can be compared with the odds ratios estimated using fixed effects:
+
+``` {r Comparison of Netherlands invasiveness with odds ratios calculated with fixed effects}
+
+netherlands_or_comparison_df <-
+  netherland_pre_pcv_invasiveness_df %>%
+                       dplyr::rename(Serotype = type) %>%
+                       dplyr::rename(Netherlands_invasiveness = nu) %>%
+                       dplyr::rename(Netherlands_invasiveness_lower = nu_lower) %>%
+                       dplyr::rename(Netherlands_invasiveness_upper = nu_upper) %>%
+                       dplyr::select(-classification) %>%
+    dplyr::left_join(combined_invasiveness_df, by = c("Serotype"))
+
+# Plot comparison of invasiveness estimates
+(netherlands_fixed_or_comparison_plot <-
+  ggplot(netherlands_or_comparison_df,
+         aes(x = Netherlands_invasiveness,
+             xmin = Netherlands_invasiveness_lower,
+             xmax = Netherlands_invasiveness_upper,
+             y = Invasiveness_FE,
+             ymin = Invasiveness_lower_FE,
+             ymax = Invasiveness_upper_FE,
+             colour = classification)) +
+    geom_errorbar(alpha = 0.25) +
+    geom_errorbarh(alpha = 0.25) +
+    geom_point() +
+    scale_x_continuous(trans = "log10") +
+    theme_bw() +
+    scale_color_manual(values = vaccine_colours) +
+    theme(legend.position = "bottom") +
+    ylab("Invasiveness estimated from log odds ratio") +
+    xlab("Invasivess estimate from adjusted type-specific Poisson (cases per carrier per year)") +
+    facet_wrap(~Sample_count) +
+    stat_cor(aes(x = Invasiveness_adjusted_type_specific_poisson,
+                 y = Invasiveness_FE),
+             inherit.aes = FALSE,
+             method = "kendall",
+             cor.coef.name = "tau")
+)
+
+```
+
+The same comparison can be undertaken against odds ratios calculated with random effects:
+
+``` {r Comparison of Netherlands data with odds ratios calculated with random effects}
+
+# Plot comparison of invasiveness estimates
+(netherlands_random_or_comparison_plot <-
+  ggplot(netherlands_or_comparison_df,
+         aes(x = Netherlands_invasiveness,
+             xmin = Netherlands_invasiveness_lower,
+             xmax = Netherlands_invasiveness_upper,
+             y = Invasiveness_REML,
+             ymin = Invasiveness_lower_REML,
+             ymax = Invasiveness_upper_REML,
+             colour = classification)) +
+    geom_errorbar(alpha = 0.25) +
+    geom_errorbarh(alpha = 0.25) +
+    geom_point() +
+    scale_x_continuous(trans = "log10") +
+    theme_bw() +
+    scale_color_manual(values = vaccine_colours) +
+    theme(legend.position = "bottom") +
+    ylab("Invasiveness estimated from log odds ratio") +
+    xlab("Invasivess estimate from adjusted type-specific Poisson (cases per carrier per year)") +
+    facet_wrap(~Sample_count) +
+    stat_cor(aes(x = Invasiveness_adjusted_type_specific_poisson,
+                 y = Invasiveness_REML),
+             inherit.aes = FALSE,
+             method = "kendall",
+             cor.coef.name = "tau")
+)
+
+combined_netherlands_or_comparison_plot <-
+  cowplot::plot_grid(plotlist = list(netherlands_fixed_or_comparison_plot,
+                                     netherlands_random_or_comparison_plot),
+                     nrow = 1,
+                     ncol = 2,
+                     labels = "AUTO")
+
+ggsave(combined_netherlands_or_comparison_plot,
+       file = "netherlands_or_comparison.png",
+       height = 8,
+       width = 14)
+
+```
+
 ## Comparison with carriage duration
 
 ``` {r Carriage duration comparison}

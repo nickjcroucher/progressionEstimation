@@ -29,7 +29,7 @@ parameters {
   vector<lower=-1.25, upper=1.25>[k_max] log_nu_k;
 
   // dataset adjustment
-  vector<lower=-pi()/2, upper=pi()/2>[i_max-1] delta_varying;
+  vector<lower=-pi()/2, upper=pi()/2>[i_max-1] gamma_varying;
 
   // negative binomial overdispersions
   real<lower=0.0,upper=10.0> phi_nb;
@@ -39,9 +39,9 @@ parameters {
 transformed parameters {
 
   // declare transformed parameters
-  vector[i_max] delta_i;
-  real mu = 0; // position parameter of Cauchy for delta
-  real tau = 2; // scale parameter of Cauchy for delta
+  vector[i_max] gamma_i;
+  real mu = 0; // position parameter of Cauchy for gamma
+  real tau = 2; // scale parameter of Cauchy for gamma
   real mu_mod = 0; // position parameter of Cauchy for strain invasiveness
   real tau_mod = 0.5; // scale parameter of Cauchy for strain invasiveness
   vector<lower=0,upper=10.0>[j_max] nu_j;
@@ -57,10 +57,10 @@ transformed parameters {
     nu_k[k] = pow(10, mu_mod + tau_mod * tan(log_nu_k[k]));
   }
 
-  // add constant to delta vector
-  delta_i[1] = 1;
+  // add constant to gamma vector
+  gamma_i[1] = 1;
   for (i in 2:i_max) {
-    delta_i[i] = pow(10, mu + tau * tan(delta_varying[i-1]));
+    gamma_i[i] = pow(10, mu + tau * tan(gamma_varying[i-1]));
   }
 
 }
@@ -80,7 +80,7 @@ model {
     // Get location adjustment
     int i = i_values[index];
     if (i > 1) {
-      target += uniform_lpdf(delta_varying[i-1] | -pi()/2, pi()/2);
+      target += uniform_lpdf(gamma_varying[i-1] | -pi()/2, pi()/2);
     }
 
     // calculate prior probability
@@ -91,7 +91,7 @@ model {
 
     // calculate likelihood given data
     target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);
-    target += neg_binomial_2_lpmf(d_ij[index] | delta_i[i]*nu_j[j]*nu_k[k]*rho_ij[index]*N_i[index]*t_i[index], phi_nb);
+    target += neg_binomial_2_lpmf(d_ij[index] | gamma_i[i]*nu_j[j]*nu_k[k]*rho_ij[index]*N_i[index]*t_i[index], phi_nb);
 
   }
 }
@@ -123,7 +123,7 @@ generated quantities {
 
     // Store predictions
     c_ij_pred[index] = n_i[index]*rho_ij[index];
-    d_ij_pred[index] = delta_i[i]*nu_j[j]*nu_k[k]*rho_ij[index]*N_i[index]*t_i[index];
+    d_ij_pred[index] = gamma_i[i]*nu_j[j]*nu_k[k]*rho_ij[index]*N_i[index]*t_i[index];
 
     // Calculate likelihood given data
     carriage_log_lik[index] = binomial_lpmf( c_ij[index] | n_i[index], rho_ij[index] );

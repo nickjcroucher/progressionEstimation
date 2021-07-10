@@ -311,12 +311,12 @@ process_progression_rate_model_output<-function(model_output,
   input_df %<>% dplyr::bind_cols(carriage_df)
   # Variation by location
   scale_parameter <- 1
-  if ("delta_i" %in% model_output@model_pars) {
+  if ("gamma_i" %in% model_output@model_pars) {
     location_parameters <- data.frame(
       "study" = i_levels,
-      "delta" = get_mean("delta_i",model_output),
-      "delta_lower" = get_lower("delta_i",model_output),
-      "delta_upper" = get_upper("delta_i",model_output)
+      "delta" = get_mean("gamma_i",model_output),
+      "delta_lower" = get_lower("gamma_i",model_output),
+      "delta_upper" = get_upper("gamma_i",model_output)
     )
   } else {
     location_parameters <- data.frame(
@@ -751,7 +751,7 @@ get_type_invasiveness_for_study <- function(df, fit, study = NULL, type = "type"
   }
 
   # Check model has a study adjustment
-  if (!("delta_i") %in% fit@model_pars) {
+  if (!("gamma_i") %in% fit@model_pars) {
     stop("Function only necessary if a model features a study-specific adjustment factor")
   }
 
@@ -769,7 +769,7 @@ get_type_invasiveness_for_study <- function(df, fit, study = NULL, type = "type"
   overall_invasiveness_mat <-
     as.matrix(fit, pars = c(invasiveness_param))
   study_adjustment <-
-    as.matrix(fit, pars = c(paste0("delta_i[",i_level,"]")))
+    as.matrix(fit, pars = c(paste0("gamma_i[",i_level,"]")))
 
   # Get product
   study_adjusted_invasiveness_mat <-

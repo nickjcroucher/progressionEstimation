@@ -37,6 +37,8 @@ Further columns can be added to use as alternative typing schemes; these can be 
 
 - paste the code into the R terminal - note the first time, the package will time some time to install and compile
 
+- on publication, share your input data spreadsheet (raise an Issue on this repository or [email me](https://www.imperial.ac.uk/people/n.croucher)) so others can include your data and cite your work
+
 ## Meta-analysis with stored data sets
 
 There are four case-carrier datasets currently included in the package:

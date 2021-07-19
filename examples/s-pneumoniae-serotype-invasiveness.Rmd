@@ -463,21 +463,28 @@ ggplot(obs_pred_df, aes(x = model_name, y = RMSE)) +
 The fits of the negative binomial can be evaluated through plotting the estimates of the precision parameter, $\phi$. As $\phi$ increases, the variance of the negative binomial distribution decreases, and the negative binomal model becomes more similar to the Poisson model.
 
 ``` {r Plot precision parameters for negative binomial models, fig.width = 6}
+(phi_plot <-
+  ggplot(obs_pred_df %>%
+          dplyr::filter(!is.na(phi)) %>%
+          dplyr::group_by(model_name) %>%
+          dplyr::slice(1) %>%
+          dplyr::ungroup(),
+        aes(x = model_name,
+            y = phi,
+            ymin = phi_lower,
+            ymax = phi_upper)) +
+    geom_point() +
+    geom_errorbar(width = 0.25) +
+    theme_bw() +
+    scale_y_continuous(trans="log10") +
+    ylab(expression(phi)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+)
 
-ggplot(obs_pred_df %>%
-        dplyr::filter(!is.na(phi)) %>%
-        dplyr::group_by(model_name) %>%
-        dplyr::slice(1) %>%
-        dplyr::ungroup(),
-      aes(x = model_name,
-          y = phi,
-          ymin = phi_lower,
-          ymax = phi_upper)) +
-  geom_point() +
-  geom_errorbar(width = 0.25) +
-  theme_bw() +
-  ylab(expression(phi)) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+ggsave(phi_plot,
+       file="serotype_phi_plot.png",
+       height = 8,
+       width = 8)
 
 ```
 

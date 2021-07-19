@@ -29,7 +29,7 @@ parameters {
   vector<lower=-1.25, upper=1.25>[j_max] log_nu_j;
 
   // negative binomial overdispersions
-  real<lower=0.0,upper=10.0> phi_nb;
+  real<lower=-3,upper=3> log_phi_nb;
 
 }
 
@@ -38,6 +38,7 @@ transformed parameters {
   // declare transformed parameters
   vector<lower=0,upper=10.0>[k_max] nu_k;
   vector[j_max] nu_j;
+  real phi_nb;
   real mu_mod = 0; // position parameter of Cauchy for strain invasiveness
   real tau_mod = 0.5; // scale parameter of Cauchy for strain invasiveness
 
@@ -50,6 +51,9 @@ transformed parameters {
   for (k in 1:k_max) {
     nu_k[k] = pow(10, log_nu_k[k]);
   }
+
+  // calculate negative binomial overdispersion
+  phi_nb = pow(10, log_phi_nb);
 
 }
 
@@ -76,7 +80,7 @@ model {
     // calculate prior probability
     target += uniform_lpdf( log_nu_k[k] | -6, 1);
     target += beta_lpdf(rho_ij[index] | 1, 1);
-    target += uniform_lpdf(phi_nb | 0, 10);
+    target += uniform_lpdf(log_phi_nb | -3, 3);
     target += uniform_lpdf(log_nu_j[j] | -1.25, 1.25);
 
     // calculate likelihood given data

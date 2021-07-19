@@ -27,7 +27,7 @@ parameters {
   vector<lower=-pi()/2, upper=pi()/2>[i_max-1] delta_varying;
 
   // negative binomial overdispersions
-  real<lower=0.0,upper=10.0> phi_nb;
+  real<lower=-3,upper=3> log_phi_nb;
 
 }
 
@@ -35,6 +35,7 @@ transformed parameters {
 
   // declare transformed parameters
   vector[i_max] delta_i;
+  real phi_nb;
   real mu = 0; // position parameter of Cauchy for delta
   real tau = 2; // scale parameter of Cauchy for delta
 
@@ -49,6 +50,9 @@ transformed parameters {
   for (i in 2:i_max) {
     delta_i[i] = pow(10, mu + tau * tan(delta_varying[i-1]));
   }
+
+  // calculate negative binomial overdispersion
+  phi_nb = pow(10, log_phi_nb);
 
 }
 
@@ -70,7 +74,7 @@ model {
     // calculate prior probability
     target += uniform_lpdf( log_nu_j[j] | -6, 1);
     target += beta_lpdf(rho_ij[index] | 1, 1);
-    target += uniform_lpdf(phi_nb | 0, 10);
+    target += uniform_lpdf(log_phi_nb | -3, 3);
 
     // calculate likelihood given data
     target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);

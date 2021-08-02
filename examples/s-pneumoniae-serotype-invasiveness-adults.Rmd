@@ -374,9 +374,21 @@ fit_list <- list(null_poisson_fit,
                  adjusted_type_specific_poisson_fit,
                  adjusted_type_specific_negbin_fit)
 
-rhat_plots <- lapply(fit_list, plot, plotfun = "rhat", binwidth = 0.00005)
 
-cowplot::plot_grid(plotlist = rhat_plots, ncol = 4, nrow = 2, labels = "AUTO")
+plot_rhat <- function(fit) {
+  rhat_plot <- plot(fit, plotfun = "rhat", binwidth = 0.00005) +
+                theme(axis.text.x = element_text(angle = 90))
+  return(rhat_plot)
+}
+
+rhat_plots <- lapply(fit_list, plot_rhat)
+
+combined_rhat_plots <- cowplot::plot_grid(plotlist = rhat_plots, ncol = 4, nrow = 2, labels = "AUTO")
+
+ggsave(combined_rhat_plots,
+       file = "adult_combined_rhat_plots.png",
+       width = 8,
+       height = 6)
 
 ```
 
@@ -386,13 +398,20 @@ Convergence can also be checked using trace plots of the log likelihood values:
 
 plot_lp <- function(fit) {
   pl <- rstan::traceplot(fit, pars = "lp__")
-  no_leg_pl <- pl + theme(legend.position = "none")
+  no_leg_pl <- pl + theme(legend.position = "none",
+                          axis.text.x = element_text(angle = 90))
   return(no_leg_pl)
 }
 
 trace_plots <- lapply(fit_list, plot_lp)
 
-cowplot::plot_grid(plotlist = trace_plots, ncol = 4, nrow = 2, labels = "AUTO")
+combined_trace_plots <- 
+  cowplot::plot_grid(plotlist = trace_plots, ncol = 4, nrow = 2, labels = "AUTO")
+
+ggsave(combined_trace_plots,
+       file = "adult_combined_trace_plots.png",
+       width = 8,
+       height = 6)
 
 ```
 
@@ -408,13 +427,28 @@ model_outputs <- lapply(fit_list,
 
 prediction_plots <- lapply(model_outputs,
                            progressionEstimation::plot_case_carrier_predictions,
-                           legend = FALSE)
+                           legend = FALSE,
+                           n_label = 0)
 
-no_leg_plot <- cowplot::plot_grid(plotlist = prediction_plots, ncol = 1, nrow = 8, labels = "AUTO")
+no_leg_plot <- cowplot::plot_grid(plotlist = prediction_plots,
+                                  ncol = 1,
+                                  nrow = 8,
+                                  labels = "AUTO",
+                                  vjust = -0.01) +
+      theme(plot.margin = unit(c(0.5,0,0,0), "cm"))
 
 prediction_plot_legend <- progressionEstimation::plot_case_carrier_predictions(model_outputs[[1]], just_legend = TRUE)
 
-cowplot::plot_grid(no_leg_plot, prediction_plot_legend, ncol = 1, rel_heights = c(0.9,0.1))
+pred_v_obs_plot <- 
+  cowplot::plot_grid(no_leg_plot,
+                     prediction_plot_legend,
+                     ncol = 1,
+                     rel_heights = c(1,0.1))
+
+ggsave(pred_v_obs_plot,
+       file = "adult_serotypes_pred_v_obs_plot.png",
+       height = 20,
+       width = 10)
 
 ```
 
@@ -482,37 +516,6 @@ ggplot(obs_pred_df %>%
 
 ```
 
-## Run model comparison with leave-one-out cross-validation
-
-The model likelihoods can be compared using leave-one-out cross-validation:
-
-``` {r Comparison with LOO-CV using full log likelihood, include = FALSE}
-
-loo_comparison <- progressionEstimation::compare_model_fits_with_loo(fit_list,
-                                                                     use_moments = FALSE,
-                                                                     num_threads = n_core)
-
-loo_comparison %>%
-  kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down")
-
-```
-
-The Pareto distribution k values are too high for robust estimates of the ELPD. This reflects many of the points being 
-
-``` {r Comparison with LOO-CV using disease distribution log likelihood, include = FALSE}
-
-disease_loo_comparison <- progressionEstimation::compare_model_fits_with_loo(fit_list,
-                                                                     log_lik_param = "disease_log_lik",
-                                                                     use_moments = FALSE,
-                                                                     num_threads = n_core)
-
-disease_loo_comparison %>%
-  kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down")
-
-```
-
 ## Run model comparison with Bayes factors
 
 As the models can instead be compared with Bayes factors:
@@ -552,12 +555,19 @@ full_adjusted_type_specific_poisson_fit <-
 
 rhat_plot <- plot(full_adjusted_type_specific_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
 
-trace_plot <- rstan::traceplot(full_adjusted_type_specific_poisson_fit, pars = "lp__")
+trace_plot <- rstan::traceplot(full_adjusted_type_specific_poisson_fit, pars = "lp__") +
+                theme(axis.text.x = element_text(angle = 90))
 
 cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
                    nrow = 1,
                    ncol = 2,
                    labels = "AUTO")
+
+ggsave(best_fitting_model_validation_plot,
+       file = "best_fitting_adult_model_validation_plot.png",
+       width = 8,
+       height = 6)
+
 
 ```
 

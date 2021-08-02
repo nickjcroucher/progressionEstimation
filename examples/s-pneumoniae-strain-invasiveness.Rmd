@@ -202,6 +202,9 @@ $$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{j}\rho_{i,j,k}N_{i}t_{i})$$
 n_chains <- 2
 n_iter <- 2.5e4
 n_core <- 2
+adapt_delta = 0.99
+stepsize = 0.01
+max_treedepth = 20
 
 adjusted_serotype_specific_poisson_fit <- 
   progressionEstimation::fit_progression_rate_model(infant_serotype_invasiveness,
@@ -211,7 +214,10 @@ adjusted_serotype_specific_poisson_fit <-
                                                     model_description = "serotype_specific_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 adjusted_serotype_specific_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_serotype_specific_poisson_fit,
@@ -234,7 +240,10 @@ adjusted_serotype_specific_negbin_fit <-
                                                     model_description = "serotype_specific_negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 adjusted_serotype_specific_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_serotype_specific_negbin_fit,
@@ -258,7 +267,10 @@ adjusted_strain_specific_poisson_fit <-
                                                     model_description = "strain_specific_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 adjusted_strain_specific_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_strain_specific_poisson_fit,
@@ -281,7 +293,10 @@ adjusted_strain_specific_negbin_fit <-
                                                     model_description = "strain_specific_negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 adjusted_strain_specific_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_strain_specific_negbin_fit,
@@ -306,7 +321,10 @@ adjusted_serotype_specific_strain_modified_poisson_fit <-
                                                     model_description = "serotype_specific_strain_modified_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 adjusted_serotype_specific_strain_modified_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_serotype_specific_strain_modified_poisson_fit,
@@ -331,7 +349,10 @@ adjusted_strain_specific_strain_modified_negbin_fit <-
                                                     model_description = "serotype_specific_strain_modified_negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 adjusted_serotype_specific_strain_modified_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_strain_specific_strain_modified_negbin_fit,
@@ -356,7 +377,10 @@ adjusted_strain_specific_serotype_modified_poisson_fit <-
                                                     model_description = "strain_specific_serotype_modified_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 adjusted_strain_specific_serotype_modified_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_strain_specific_serotype_modified_poisson_fit,
@@ -381,7 +405,10 @@ adjusted_strain_specific_serotype_modified_negbin_fit <-
                                                     model_description = "strain_specific_serotype_modified_negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 adjusted_strain_specific_serotype_modified_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_strain_specific_serotype_modified_negbin_fit,
@@ -405,7 +432,10 @@ adjusted_strain_and_serotype_specific_poisson_fit <-
                                                     model_description = "strain_and_serotype_specific_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 adjusted_strain_and_serotype_specific_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_strain_and_serotype_specific_poisson_fit,
@@ -428,7 +458,10 @@ adjusted_strain_and_serotype_specific_negbin_fit <-
                                                     model_description = "strain_and_serotype_specific_negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 adjusted_strain_and_serotype_specific_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(adjusted_strain_and_serotype_specific_negbin_fit,
@@ -534,14 +567,29 @@ for (i in 1:length(model_outputs)) {
   prediction_plots[[i]] <- progressionEstimation::plot_case_carrier_predictions(
                                                        model_outputs[[i]],
                                                        label_col = label_list[[i]],
-                                                       legend = FALSE)
+                                                       legend = FALSE,
+                                                       n_label = 0)
 }
 
-no_leg_plot <- cowplot::plot_grid(plotlist = prediction_plots, ncol = 1, nrow = 10, labels = "AUTO")
+no_leg_plot <- cowplot::plot_grid(plotlist = prediction_plots,
+                                  ncol = 1,
+                                  nrow = 8,
+                                  labels = "AUTO",
+                                  vjust = -0.01) +
+      theme(plot.margin = unit(c(0.5,0,0,0), "cm"))
 
 prediction_plot_legend <- progressionEstimation::plot_case_carrier_predictions(model_outputs[[1]], just_legend = TRUE)
 
-cowplot::plot_grid(no_leg_plot, prediction_plot_legend, ncol = 1, rel_heights = c(0.9,0.1))
+pred_v_obs_plot <- 
+  cowplot::plot_grid(no_leg_plot,
+                     prediction_plot_legend,
+                     ncol = 1,
+                     rel_heights = c(1,0.1))
+
+ggsave(pred_v_obs_plot,
+       file = "infant_strain_serotypes_pred_v_obs_plot.png",
+       height = 20,
+       width = 10)
 
 ```
 
@@ -693,11 +741,14 @@ full_adjusted_strain_and_serotype_specific_poisson_fit <-
                                                     model_description = "strain_and_serotype_specific_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 rhat_plot <- plot(full_adjusted_strain_and_serotype_specific_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
 
-trace_plot <- rstan::traceplot(full_adjusted_strain_and_serotype_specific_poisson_fit, pars = "lp__")
+trace_plot <- rstan::traceplot(full_adjusted_strain_and_serotype_specific_poisson_fit, pars = "lp__") + theme(axis.text.x = element_text(angle = 90))
 
 (full_strain_and_serotype_validation_plot <-
   cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
@@ -953,7 +1004,10 @@ sensitivity_adjusted_serotype_specific_poisson_fit <-
                                                     model_description = "serotype_specific_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 sensitivity_adjusted_serotype_specific_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_serotype_specific_poisson_fit,
@@ -971,7 +1025,10 @@ sensitivity_adjusted_serotype_specific_negbin_fit <-
                                                     model_description = "serotype_specific_negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 sensitivity_adjusted_serotype_specific_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_serotype_specific_negbin_fit,
@@ -990,7 +1047,10 @@ sensitivity_adjusted_strain_specific_poisson_fit <-
                                                     model_description = "strain_specific_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 sensitivity_adjusted_strain_specific_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_specific_poisson_fit,
@@ -1011,7 +1071,10 @@ sensitivity_adjusted_strain_specific_negbin_fit <-
                                                     model_description = "strain_specific_negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 sensitivity_adjusted_strain_specific_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_specific_negbin_fit,
@@ -1037,7 +1100,10 @@ sensitivity_adjusted_serotype_specific_strain_modified_poisson_fit <-
                                                     model_description = "serotype_specific_strain_modified_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 sensitivity_adjusted_serotype_specific_strain_modified_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_serotype_specific_strain_modified_poisson_fit,
@@ -1060,7 +1126,10 @@ sensitivity_adjusted_strain_specific_strain_modified_negbin_fit <-
                                                     model_description = "serotype_specific_strain_modified_negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 sensitivity_adjusted_serotype_specific_strain_modified_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_specific_strain_modified_negbin_fit,
@@ -1083,7 +1152,10 @@ sensitivity_adjusted_strain_specific_serotype_modified_poisson_fit <-
                                                     model_description = "strain_specific_serotype_modified_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 sensitivity_adjusted_strain_specific_serotype_modified_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_specific_serotype_modified_poisson_fit,
@@ -1106,7 +1178,10 @@ sensitivity_adjusted_strain_specific_serotype_modified_negbin_fit <-
                                                     model_description = "strain_specific_serotype_modified_negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 sensitivity_adjusted_strain_specific_serotype_modified_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_specific_serotype_modified_negbin_fit,
@@ -1127,7 +1202,10 @@ sensitivity_adjusted_strain_and_serotype_specific_poisson_fit <-
                                                     model_description = "strain_and_serotype_specific_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 sensitivity_adjusted_strain_and_serotype_specific_poisson_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_and_serotype_specific_poisson_fit,
@@ -1148,7 +1226,10 @@ sensitivity_adjusted_strain_and_serotype_specific_negbin_fit <-
                                                     model_description = "strain_and_serotype_specific_negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
 sensitivity_adjusted_strain_and_serotype_specific_negbin_output_df <-
   progressionEstimation::process_progression_rate_model_output(sensitivity_adjusted_strain_and_serotype_specific_negbin_fit,

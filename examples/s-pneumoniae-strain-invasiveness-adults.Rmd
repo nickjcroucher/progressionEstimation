@@ -123,7 +123,7 @@ full_strain_and_serotype_specific_poisson_fit <-
 
 rhat_plot <- plot(full_strain_and_serotype_specific_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
 
-trace_plot <- rstan::traceplot(full_strain_and_serotype_specific_poisson_fit, pars = "lp__")
+trace_plot <- rstan::traceplot(full_strain_and_serotype_specific_poisson_fit, pars = "lp__") + theme(axis.text.x = element_text(angle = 90))
 
 (full_strain_and_serotype_validation_plot <-
   cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
@@ -298,13 +298,13 @@ best_fitting_output %<>%
 combined_heterogeneity_plot <-
   cowplot::plot_grid(plotlist = list(strain_invasiveness_plot, serotype_invasiveness_plot),
                      ncol = 1, nrow = 2,
-                     rel_heights = c(0.33, 1),
+                     rel_heights = c(0.5, 1),
                      labels = "AUTO")
 
 ggsave(combined_heterogeneity_plot,
        file = "mixed_within_strain_invasiveness_variation_plot.png",
-       width = 8,
-       height = 12
+       width = 12,
+       height = 17.5
 )
 
 ```

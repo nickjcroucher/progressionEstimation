@@ -11,10 +11,18 @@ make_factors <- function(df) {
   df %<>%
     dplyr::mutate(study = factor(study)) %>%
     dplyr::mutate(type = factor(type))
-  if ("strain" %in% colnames(df)) {
-    df %<>%
-      dplyr::mutate(strain = factor(strain))
-  }
+  return(df)
+}
+
+process_strains <- function(df) {
+  df %<>%
+    dplyr::mutate(strain =
+                    dplyr::case_when(
+                      !grepl("\\D", as.character(strain)) ~ paste0("GPSC", strain),
+                      TRUE ~ strain
+                    )
+    ) %>%
+    dplyr::mutate(strain = factor(strain))
   return(df)
 }
 
@@ -24,9 +32,11 @@ S_pneumoniae_infant_serotype <- process_pneumo_df("data-raw/S_pneumoniae_infant_
 S_pneumoniae_adult_serotype <- process_pneumo_df("data-raw/S_pneumoniae_adult_serotype.csv") %>%
                                   make_factors()
 S_pneumoniae_infant_strain <- read.csv("data-raw/S_pneumoniae_infant_strain.csv") %>%
-                                  make_factors()
+                                  make_factors() %>%
+                                  process_strains()
 S_pneumoniae_mixed_strain <- read.csv("data-raw/S_pneumoniae_mixed_strain.csv") %>%
-                                  make_factors()
+                                  make_factors() %>%
+                                  process_strains()
 
 # Save the cleaned data in the required R package location
 usethis::use_data(S_pneumoniae_infant_serotype, overwrite = TRUE)

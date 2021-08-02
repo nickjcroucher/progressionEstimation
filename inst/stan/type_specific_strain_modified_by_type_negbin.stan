@@ -72,16 +72,12 @@ model {
     // Get location adjustment
     int i = i_values[index];
 
-    // Calculate modifier
-    if (j > 1) {
-      target += uniform_lpdf(log_nu_j[j-1] | -pi()/2, pi()/2);
-    }
-
     // calculate prior probability
     target += uniform_lpdf( log_nu_k[k] | -6, 1);
     target += beta_lpdf(rho_ij[index] | 1, 1);
     target += uniform_lpdf(log_phi_nb | -3, 3);
-    target += uniform_lpdf(log_nu_j[j] | -1.25, 1.25);
+    //target += uniform_lpdf(log_nu_j[j] | -1.25, 1.25);
+    target += uniform_lpdf(log_nu_j[j] | -10, 10);
 
     // calculate likelihood given data
     target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);

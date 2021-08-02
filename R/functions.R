@@ -154,6 +154,8 @@ process_input_data <- function(input_df, type = "type", use_strain = FALSE, comb
 #' @param num_iter Length of MCMCs
 #' @param num_cores Number of threads used to calculate MCMCs
 #' @param adapt_delta_value Target average acceptance probability of MCMCs (default = 0.8)
+#' @param stepsize_value Initial MCMC step size (default = 1)
+#' @param max_treedepth_value Depth of tree explored by MCMC sampler (default = 10)
 #'
 #' @return A stanfit object
 #' @export
@@ -168,7 +170,9 @@ fit_progression_rate_model<-function(input_data,
                                      num_chains = 4,
                                      num_iter = 1e4,
                                      num_cores = 1,
-                                     adapt_delta_value = 0.8) {
+                                     adapt_delta_value = 0.8,
+                                     stepsize_value = 1,
+                                     max_treedepth_value = 10) {
   # Validate input
   model_suffix = match.arg(stat_model, c("poisson","negbin"), several.ok = FALSE)
   if ((strain_as_primary_type | strain_as_secondary_type) & !("k_max" %in% names(input_data))) {
@@ -205,7 +209,9 @@ fit_progression_rate_model<-function(input_data,
                     iter = num_iter,
                     cores = num_cores,
                     chains = num_chains,
-                    control = list(adapt_delta = adapt_delta_value)
+                    control = list(adapt_delta = adapt_delta_value,
+                                   stepsize = stepsize_value,
+                                   max_treedepth = max_treedepth_value)
     )
   # Rename if specified
   if (!(is.null(model_description))) {
@@ -412,8 +418,8 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_co
                ymin = carriage_prediction_lower,
                ymax = carriage_prediction_upper)) +
     geom_abline(slope = 1, intercept = 0, lty = 2, colour = "coral") +
-    ylab("Number of carriage isolates predicted by model") +
-    xlab("Number of observed carriage isolates") +
+    ylab("Predicted carriage isolates") +
+    xlab("Observed carriage isolates") +
     theme_bw()
 
   if (!is.null(label_col)) {
@@ -435,8 +441,8 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_co
                ymin = disease_prediction_lower,
                ymax = disease_prediction_upper)) +
     geom_abline(slope = 1, intercept = 0, lty = 2, colour = "coral") +
-    ylab("Number of disease isolates predicted by model") +
-    xlab("Number of observed disease isolates") +
+    ylab("Predicted disease isolates") +
+    xlab("Observed disease isolates") +
     theme_bw()
 
   if (!is.null(label_col)) {
@@ -742,7 +748,6 @@ validate_progression_estimation_dataset <- function(df) {
 #' @return Data frame containing adjusted estimates of invasiveness for a study
 #' @export
 #'
-#' @examples
 get_type_invasiveness_for_study <- function(df, fit, study = NULL, type = "type", use_strain_invasiveness = FALSE) {
 
   # Check study name in list

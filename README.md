@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5154067.svg)](https://doi.org/10.5281/zenodo.5154067)
+
 # progressionEstimation
 R and stan package for the estimation of microbial progression rates
 

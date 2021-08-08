@@ -516,6 +516,35 @@ ggplot(obs_pred_df %>%
 
 ```
 
+## Plot secondary invasiveness for modified invasiveness models
+
+To check these are not being constrained by the prior limits, we plot the invasiveness modification values, first for the type-specific strain-modified Poisson model:
+
+``` {r Secondary invasiveness in the type-specific strain-modified Poisson model}
+
+progressionEstimation::plot_progression_rates(model_outputs[[5]], type = "strain")
+
+```
+
+``` {r Secondary invasiveness in the type-specific strain-modified negative binomial model}
+
+progressionEstimation::plot_progression_rates(model_outputs[[6]], type = "strain")
+
+```
+
+``` {r Secondary invasiveness in the strain-specific type-modified Poisson model}
+
+progressionEstimation::plot_progression_rates(model_outputs[[7]])
+
+```
+
+``` {r Secondary invasiveness in the strain-specific type-modified negative binomial model}
+
+progressionEstimation::plot_progression_rates(model_outputs[[8]])
+
+```
+
+
 ## Run model comparison with Bayes factors
 
 As the models can instead be compared with Bayes factors:
@@ -625,6 +654,16 @@ ggsave(invasiveness_plot,
        file = "full_serotype_invasiveness_plot.png",
        height = 8,
        width = 8)
+
+write.csv(best_fitting_output %>%
+            dplyr::select(type,nu,nu_lower,nu_upper) %>%
+            dplyr::rename(invasiveness = nu) %>%
+            dplyr::rename(invasiveness_lower = nu_lower) %>%
+            dplyr::rename(invasiveness_upper = nu_upper) %>%
+            dplyr::distinct(),
+          file = "Dataset_S2.csv",
+          quote = F,
+          row.names = F)
 
 ```
 

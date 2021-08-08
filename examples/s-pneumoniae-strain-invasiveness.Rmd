@@ -50,6 +50,20 @@ epi_colors <- c(
   "disease" = "cornflowerblue"
 )
 
+model_name_labels <-
+  c(
+    "type-specific Poisson",
+    "type-specific negative binomial",
+    "strain-specific Poisson",
+    "strain-specific negative binomial",
+    "type-specific strain-modified Poisson",
+    "type-specific strain-modified negative binomial",
+    "strain-specific type-modified Poisson",
+    "strain-specific type-modified negative binomial",
+    "strain- and type-specific Poisson",
+    "strain- and type-specific negative binomial"
+  )
+
 ```
 
 ## Description and filtering of the dataset
@@ -71,20 +85,21 @@ studies_by_size <-
 S_pneumoniae_infant_strain %<>%
   dplyr::mutate(study = factor(study, levels = studies_by_size))
 
-ggplot(S_pneumoniae_infant_strain %>%
-         tidyr::pivot_longer(c(carriage,disease),
-                             names_to = "Sample type",
-                             values_to = "count"),
-       aes(x = study,
-           y = count,
-           colour = `Sample type`,
-           fill = `Sample type`)) +
-  geom_col() +
-  theme_bw() + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-  scale_fill_manual(values = epi_colors) +
-  scale_colour_manual(values = epi_colors)
-
+(full_epi_data_plot <-
+  ggplot(S_pneumoniae_infant_strain %>%
+           tidyr::pivot_longer(c(carriage,disease),
+                               names_to = "Sample type",
+                               values_to = "count"),
+         aes(x = study,
+             y = count,
+             colour = `Sample type`,
+             fill = `Sample type`)) +
+    geom_col() +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+    scale_fill_manual(values = epi_colors) +
+    scale_colour_manual(values = epi_colors)
+)
 ```
 
 The total number of observations for each serotype can be similarly plotted:
@@ -114,20 +129,34 @@ strain_by_count <-
 S_pneumoniae_infant_strain %<>%
   dplyr::mutate(type = factor(type, levels = serotype_by_count))
 
-ggplot(S_pneumoniae_infant_strain %>%
-         tidyr::pivot_longer(c(carriage,disease),
-                             names_to = "Sample type",
-                             values_to = "count"),
-       aes(x = type,
-           y = count,
-           colour = `Sample type`,
-           fill = `Sample type`)) +
-  geom_col() +
-  xlab("Serotype") +
-  theme_bw() + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-  scale_fill_manual(values = epi_colors) +
-  scale_colour_manual(values = epi_colors)
+serotype_frequency_plot <-
+  ggplot(S_pneumoniae_infant_strain %>%
+           tidyr::pivot_longer(c(carriage,disease),
+                               names_to = "Sample type",
+                               values_to = "count"),
+         aes(x = type,
+             y = count,
+             colour = `Sample type`,
+             fill = `Sample type`)) +
+    geom_col() +
+    xlab("Serotype") +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+    scale_fill_manual(values = epi_colors) +
+    scale_colour_manual(values = epi_colors)
+
+(combined_full_epi_data_plot <-
+  cowplot::plot_grid(plotlist = list(full_epi_data_plot, serotype_frequency_plot),
+                     nrow = 2,
+                     ncol = 1,
+                     labels = "AUTO")
+)
+
+ggsave(combined_full_epi_data_plot,
+       file = "full_epi_data_child_strain_plot.png",
+       height = 12,
+       width = 8
+)
 
 ```
 
@@ -172,20 +201,51 @@ infant_serotype_strain_combined_invasiveness <-
                                             combine_strain = TRUE,
                                             condense = FALSE)
 
-ggplot(filtered_S_pneumoniae_infant_strain %>%
-         tidyr::pivot_longer(c(carriage,disease),
-                             names_to = "Sample type",
-                             values_to = "count"),
-       aes(x = type,
-           y = count,
-           colour = `Sample type`,
-           fill = `Sample type`)) +
-  geom_col() +
-  xlab("Serotype") +
-  theme_bw() + 
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
-  scale_fill_manual(values = epi_colors) +
-  scale_colour_manual(values = epi_colors)
+(filtered_epi_data_plot <-
+  ggplot(filtered_S_pneumoniae_infant_strain %>%
+           tidyr::pivot_longer(c(carriage,disease),
+                               names_to = "Sample type",
+                               values_to = "count"),
+         aes(x = study,
+             y = count,
+             colour = `Sample type`,
+             fill = `Sample type`)) +
+    geom_col() +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+    scale_fill_manual(values = epi_colors) +
+    scale_colour_manual(values = epi_colors)
+)
+
+(filtered_sero_data_plot <-
+  ggplot(filtered_S_pneumoniae_infant_strain %>%
+           tidyr::pivot_longer(c(carriage,disease),
+                               names_to = "Sample type",
+                               values_to = "count"),
+         aes(x = type,
+             y = count,
+             colour = `Sample type`,
+             fill = `Sample type`)) +
+    geom_col() +
+    xlab("Serotype") +
+    theme_bw() + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+    scale_fill_manual(values = epi_colors) +
+    scale_colour_manual(values = epi_colors)
+)
+
+(combined_filtered_epi_data_plot <-
+  cowplot::plot_grid(plotlist = list(filtered_epi_data_plot, filtered_sero_data_plot),
+                     nrow = 2,
+                     ncol = 1,
+                     labels = "AUTO")
+)
+
+ggsave(combined_filtered_epi_data_plot,
+       file = "filtered_epi_data_child_strain_plot.png",
+       height = 12,
+       width = 8
+)
 
 ```
 
@@ -366,7 +426,7 @@ Models can alternative have invasiveness primarily determined by strain, and mod
 
 $$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
 
-``` {r Adjusted serotype-specific strain-modified Poisson model fit, include = FALSE}
+``` {r Adjusted strain- and serotype-specific Poisson model fit, include = FALSE}
 
 adjusted_strain_specific_serotype_modified_poisson_fit <- 
   progressionEstimation::fit_progression_rate_model(infant_serotype_and_strain_invasiveness,
@@ -394,7 +454,7 @@ This model can also be applied using a negative binomial model:
 
 $$d_{i,j,k} \sim NegBin(\delta_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
 
-``` {r Adjusted serotype-specific strain-modified Poisson model fit, include = FALSE}
+``` {r Adjusted strain- and serotype-specific negative binomial model fit, include = FALSE}
 
 adjusted_strain_specific_serotype_modified_negbin_fit <- 
   progressionEstimation::fit_progression_rate_model(infant_serotype_and_strain_invasiveness,
@@ -422,7 +482,7 @@ The final model structure assigns a different invasiveness to each strain-seroty
 
 $$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{j,k}\rho_{i,j,k}N_{i}t_{i})$$
 
-``` {r Adjusted serotype-specific strain-modified Poisson model fit, include = FALSE}
+``` {r Adjusted serotype- and strain-specific Poisson model fit, include = FALSE}
 
 adjusted_strain_and_serotype_specific_poisson_fit <- 
   progressionEstimation::fit_progression_rate_model(infant_serotype_strain_combined_invasiveness,
@@ -448,7 +508,7 @@ adjusted_strain_and_serotype_specific_poisson_output_df <-
 A version using the negative binomial distribution can also be fitted:
 
 $$d_{i,j,k} \sim NegBin(\delta_{i}\nu_{j,k}\rho_{i,j,k}N_{i}t_{i})$$
-``` {r Adjusted serotype-specific strain-modified negative binomial model fit, include = FALSE}
+``` {r Adjusted serotype- and strain-specific negative binomial model fit, include = FALSE}
 
 adjusted_strain_and_serotype_specific_negbin_fit <- 
   progressionEstimation::fit_progression_rate_model(infant_serotype_strain_combined_invasiveness,
@@ -632,6 +692,7 @@ obs_pred_df <-
     geom_violin(fill = NA) +
     scale_y_continuous(trans="log10") +
     xlab("Model name") +
+    scale_x_discrete(labels = model_name_labels) +
     theme_bw() +
     facet_grid(Observation ~ .) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
@@ -665,13 +726,14 @@ The fits of the negative binomial can be evaluated through plotting the estimate
     scale_y_continuous(trans="log10") +
     ylab(expression(phi)) +
     xlab("Model name") +
+    scale_x_discrete(labels = model_name_labels[c(2,4,6,8,10)]) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 )
 
 ggsave(strain_and_serotype_precision_parameters,
        file = "strain_and_serotype_precision_plot.png",
-       width = 7,
-       height = 7
+       width = 6,
+       height = 6
 )
 
 ```
@@ -823,7 +885,24 @@ ggsave(full_invasiveness_plot,
 
 ```
 
+## Save overall dataset
+ 
+``` {r Save dataset}
+ 
+write.csv(best_fitting_output %>%
+            dplyr::select(combined,nu,nu_lower,nu_upper) %>%
+            dplyr::rename(genotype = combined) %>%
+            dplyr::rename(invasiveness = nu) %>%
+            dplyr::rename(invasiveness_lower = nu_lower) %>%
+            dplyr::rename(invasiveness_upper = nu_upper) %>%
+            dplyr::distinct(),
+          file = "Dataset_S3.csv",
+          quote = F,
+          row.names = F)
 
+```
+
+## Filter to only larger sample sizes
 
 ``` {r Plot only larger sample size}
 
@@ -1141,7 +1220,7 @@ sensitivity_adjusted_serotype_specific_strain_modified_negbin_output_df <-
 
 
 
-``` {r Adjusted serotype-specific strain-modified Poisson model fit sensitivity test, include = FALSE}
+``` {r Adjusted strain-specific serotype-modified Poisson model fit sensitivity test, include = FALSE}
 
 sensitivity_adjusted_strain_specific_serotype_modified_poisson_fit <- 
   progressionEstimation::fit_progression_rate_model(sensitivity_infant_serotype_and_strain_invasiveness,
@@ -1167,7 +1246,7 @@ sensitivity_adjusted_strain_specific_serotype_modified_poisson_output_df <-
 
 
 
-``` {r Adjusted serotype-specific strain-modified Poisson model fit sensitivity test, include = FALSE}
+``` {r Adjusted strain-specific serotype-modified negative binomial model fit sensitivity test, include = FALSE}
 
 sensitivity_adjusted_strain_specific_serotype_modified_negbin_fit <- 
   progressionEstimation::fit_progression_rate_model(sensitivity_infant_serotype_and_strain_invasiveness,
@@ -1192,7 +1271,7 @@ sensitivity_adjusted_strain_specific_serotype_modified_negbin_output_df <-
 ```
 
 
-``` {r Adjusted serotype-specific strain-modified Poisson model fit sensitivity test, include = FALSE}
+``` {r Adjusted serotype- and strain-specific Poisson model fit sensitivity test, include = FALSE}
 
 sensitivity_adjusted_strain_and_serotype_specific_poisson_fit <- 
   progressionEstimation::fit_progression_rate_model(sensitivity_infant_serotype_strain_combined_invasiveness,
@@ -1216,7 +1295,7 @@ sensitivity_adjusted_strain_and_serotype_specific_poisson_output_df <-
 ```
 
 
-``` {r Adjusted serotype-specific strain-modified negative binomial model fit sensitivity test, include = FALSE}
+``` {r Adjusted serotype- and strain-specific negative binomial model fit sensitivity test, include = FALSE}
 
 sensitivity_adjusted_strain_and_serotype_specific_negbin_fit <- 
   progressionEstimation::fit_progression_rate_model(sensitivity_infant_serotype_strain_combined_invasiveness,
@@ -1265,3 +1344,4 @@ sensitivity_bf_comparison %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
 ```
+

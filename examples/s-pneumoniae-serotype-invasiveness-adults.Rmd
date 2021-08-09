@@ -2,7 +2,7 @@
 title: "s-pneumoniae-serotype-invasiveness-adults"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{s-pneumoniae-serotype-invasiveness}
+  %\VignetteIndexEntry{s-pneumoniae-serotype-invasiveness-adults}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -516,35 +516,6 @@ ggplot(obs_pred_df %>%
 
 ```
 
-## Plot secondary invasiveness for modified invasiveness models
-
-To check these are not being constrained by the prior limits, we plot the invasiveness modification values, first for the type-specific strain-modified Poisson model:
-
-``` {r Secondary invasiveness in the type-specific strain-modified Poisson model}
-
-progressionEstimation::plot_progression_rates(model_outputs[[5]], type = "strain")
-
-```
-
-``` {r Secondary invasiveness in the type-specific strain-modified negative binomial model}
-
-progressionEstimation::plot_progression_rates(model_outputs[[6]], type = "strain")
-
-```
-
-``` {r Secondary invasiveness in the strain-specific type-modified Poisson model}
-
-progressionEstimation::plot_progression_rates(model_outputs[[7]])
-
-```
-
-``` {r Secondary invasiveness in the strain-specific type-modified negative binomial model}
-
-progressionEstimation::plot_progression_rates(model_outputs[[8]])
-
-```
-
-
 ## Run model comparison with Bayes factors
 
 As the models can instead be compared with Bayes factors:
@@ -587,10 +558,12 @@ rhat_plot <- plot(full_adjusted_type_specific_poisson_fit, plotfun = "rhat", bin
 trace_plot <- rstan::traceplot(full_adjusted_type_specific_poisson_fit, pars = "lp__") +
                 theme(axis.text.x = element_text(angle = 90))
 
-cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
-                   nrow = 1,
-                   ncol = 2,
-                   labels = "AUTO")
+(best_fitting_model_validation_plot <-
+  cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
+                     nrow = 1,
+                     ncol = 2,
+                     labels = "AUTO")
+)
 
 ggsave(best_fitting_model_validation_plot,
        file = "best_fitting_adult_model_validation_plot.png",

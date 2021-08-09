@@ -738,6 +738,34 @@ ggsave(strain_and_serotype_precision_parameters,
 
 ```
 
+## Plot secondary invasiveness for modified invasiveness models
+
+To check these are not being constrained by the prior limits, we plot the invasiveness modification values, first for the type-specific strain-modified Poisson model:
+
+``` {r Secondary invasiveness in the type-specific strain-modified Poisson model}
+
+progressionEstimation::plot_progression_rates(model_outputs[[5]], type = "strain")
+
+```
+
+``` {r Secondary invasiveness in the type-specific strain-modified negative binomial model}
+
+progressionEstimation::plot_progression_rates(model_outputs[[6]], type = "strain")
+
+```
+
+``` {r Secondary invasiveness in the strain-specific type-modified Poisson model}
+
+progressionEstimation::plot_progression_rates(model_outputs[[7]])
+
+```
+
+``` {r Secondary invasiveness in the strain-specific type-modified negative binomial model}
+
+progressionEstimation::plot_progression_rates(model_outputs[[8]])
+
+```
+
 ## Run model comparison with leave-one-out cross-validation
 
 The model likelihoods can be compared using leave-one-out cross-validation:

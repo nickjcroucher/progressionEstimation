@@ -1,7 +1,7 @@
 Package: progressionEstimation
 Type: Package
 Title: R package for the estimation of microbial progression rates 
-Version: 0.1.0
+Version: 1.0.0
 Author: c(person(given = "Alessandra",
                family = "Løchen",
                role = c("ctb")),

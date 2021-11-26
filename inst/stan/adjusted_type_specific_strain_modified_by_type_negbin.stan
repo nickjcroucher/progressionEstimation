@@ -72,8 +72,29 @@ transformed parameters {
 // The model to be estimated
 model {
 
+  // Calculate prior probability for strains
+  for (k in 1:k_max) {
+    target += uniform_lpdf(log_nu_k[k] | -6, 1);
+  }
+
+  // Calculate prior probability for types
+  for (j in 1:j_max) {
+    target += uniform_lpdf(log_nu_j[j] | -1.25, 1.25);
+  }
+
+  // Calculate prior probability for study adjustment
+  for (i in 2:i_max) {
+    target += uniform_lpdf(gamma_varying[i-1] | -pi()/2, pi()/2);
+  }
+
+  // Calculate prior probability for precision parameter
+  target += uniform_lpdf(log_phi_nb | -3, 3);
+
   // iterate over datasets
   for (index in 1:n_obs) {
+
+    // Calculate prior probability for carriage frequency
+    target += beta_lpdf(rho_ij[index] | 1, 1);
 
     // Get serotype
     int j = j_values[index];
@@ -83,15 +104,6 @@ model {
 
     // Get location adjustment
     int i = i_values[index];
-    if (i > 1) {
-      target += uniform_lpdf(gamma_varying[i-1] | -pi()/2, pi()/2);
-    }
-
-    // calculate prior probability
-    target += uniform_lpdf( log_nu_k[k] | -6, 1);
-    target += beta_lpdf(rho_ij[index] | 1, 1);
-    target += uniform_lpdf(log_phi_nb | -3, 3);
-    target += uniform_lpdf(log_nu_j[j] | -1.25, 1.25);
 
     // calculate likelihood given data
     target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);

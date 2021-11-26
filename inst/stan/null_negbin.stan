@@ -46,16 +46,20 @@ transformed parameters {
 // The model to be estimated
 model {
 
+  // Calculate prior probability across all types
+  target += uniform_lpdf(log_nu | -6, 1);
+
+  // Calculate prior probability for precision parameter
+  target += uniform_lpdf(log_phi_nb | -3, 3);
+
   // iterate over datasets
   for (index in 1:n_obs) {
 
+    // Calculate prior probability for carriage frequency
+    target += beta_lpdf(rho_ij[index] | 1, 1);
+
     // Get serotype
     int j = j_values[index];
-
-    // calculate prior probability
-    target += uniform_lpdf( log_nu | -6, 1);
-    target += beta_lpdf(rho_ij[index] | 1, 1);
-    target += uniform_lpdf(log_phi_nb | -3, 3);
 
     // calculate likelihood given data
     target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);

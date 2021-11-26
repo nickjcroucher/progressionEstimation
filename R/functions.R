@@ -233,6 +233,10 @@ get_lower<-function(parameter,model) {
   return(rstan::summary(model,pars=c(parameter))$summary[,4])
 }
 
+get_median<-function(parameter,model) {
+  return(rstan::summary(model,pars=c(parameter))$summary[,6])
+}
+
 #' Process the model output for downstream analysis
 #'
 #' @param model_output Stanfit object returned by model fitting
@@ -310,7 +314,7 @@ process_progression_rate_model_output<-function(model_output,
   }
   # Carriage prevalence estimates
   carriage_df <- data.frame(
-    "rho" = get_mean("rho_ij",model_output),
+    "rho" = get_median("rho_ij",model_output),
     "rho_lower" = get_lower("rho_ij",model_output),
     "rho_upper" = get_upper("rho_ij",model_output)
   )
@@ -320,7 +324,7 @@ process_progression_rate_model_output<-function(model_output,
   if ("gamma_i" %in% model_output@model_pars) {
     location_parameters <- data.frame(
       "study" = i_levels,
-      "delta" = get_mean("gamma_i",model_output),
+      "delta" = get_median("gamma_i",model_output),
       "delta_lower" = get_lower("gamma_i",model_output),
       "delta_upper" = get_upper("gamma_i",model_output)
     )
@@ -340,7 +344,7 @@ process_progression_rate_model_output<-function(model_output,
   }
   progression_rates_df <- data.frame(
     "type" = j_levels,
-    "nu" = get_mean(nu_name,model_output),
+    "nu" = get_median(nu_name,model_output),
     "nu_lower" = get_lower(nu_name,model_output),
     "nu_upper" = get_upper(nu_name,model_output)
   )
@@ -349,7 +353,7 @@ process_progression_rate_model_output<-function(model_output,
   if ("nu_k" %in% model_output@model_pars) {
     secondary_progression_rates_df <- data.frame(
       "type" = k_levels,
-      "secondary_nu" = get_mean("nu_k",model_output),
+      "secondary_nu" = get_median("nu_k",model_output),
       "secondary_nu_lower" = get_lower("nu_k",model_output),
       "secondary_nu_upper" = get_upper("nu_k",model_output)
     )
@@ -358,7 +362,7 @@ process_progression_rate_model_output<-function(model_output,
 
   if ("phi_nb" %in% model_output@model_pars) {
     precision_parameters_df <- data.frame(
-      "phi" = get_mean("phi_nb",model_output),
+      "phi" = get_median("phi_nb",model_output),
       "phi_lower" = get_lower("phi_nb",model_output),
       "phi_upper" = get_upper("phi_nb",model_output)
     )
@@ -367,10 +371,10 @@ process_progression_rate_model_output<-function(model_output,
 
   # Extract predictions and intervals
   input_df %<>%
-    dplyr::mutate(carriage_prediction = get_mean("c_ij_pred",model_output)) %>%
+    dplyr::mutate(carriage_prediction = get_median("c_ij_pred",model_output)) %>%
     dplyr::mutate(carriage_prediction_lower = get_lower("c_ij_pred",model_output)) %>%
     dplyr::mutate(carriage_prediction_upper =  get_upper("c_ij_pred",model_output)) %>%
-    dplyr::mutate(disease_prediction = get_mean("d_ij_pred",model_output)) %>%
+    dplyr::mutate(disease_prediction = get_median("d_ij_pred",model_output)) %>%
     dplyr::mutate(disease_prediction_lower = get_lower("d_ij_pred",model_output)) %>%
     dplyr::mutate(disease_prediction_upper =  get_upper("d_ij_pred",model_output))
 

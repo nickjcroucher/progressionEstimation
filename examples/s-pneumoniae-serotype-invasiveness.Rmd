@@ -55,6 +55,17 @@ epi_colors <- c(
   "disease" = "cornflowerblue"
 )
 
+model_name_labels <-
+  c("null Poisson",
+    "null negative binomial",
+    "type-specific Poisson",
+    "type-specific negative binomial",
+    "study-adjusted null Poisson",
+    "study-adjusted null negative binomial",
+    "study-adjusted type-specific Poisson",
+    "study-adjusted type-specific negative binomial"
+  )
+
 ```
 
 ## Description and filtering of the dataset
@@ -221,7 +232,7 @@ This filtered dataset comprises `r S_pneumoniae_infant_serotype %>% dplyr::selec
 
 ## Fitting the statistical models
 
-The null model, in which each serotyoe $j$ causes invasive disease at the same rate in each location $i$, can be fitted using a Poisson distribution of disease isolates (**null Poisson** model):
+The null model, in which each serotype $j$ causes invasive disease at the same rate in each location $i$, can be fitted using a Poisson distribution of disease isolates (**null Poisson** model):
 
 $$d_{i,j} \sim Pois(\nu\rho_{i,j}N_{i}t_{i})$$
 
@@ -477,18 +488,28 @@ obs_pred_df <-
                   )
                 )
 
-ggplot(obs_pred_df, aes(x = model_name, y = RMSE)) +
-  #geom_boxplot(outlier.shape = NA) +
-  geom_point(position = position_jitter(width = 0.25),
-             alpha = 0.25,
-             cex = 0.75,
-             colour = "blue",
-             pch = 4) +
-  geom_violin(fill = NA) +
-  scale_y_continuous(trans="log10") +
-  theme_bw() +
-  facet_grid(Observation ~ .) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+(serotype_rmse_plot <-
+  ggplot(obs_pred_df, aes(x = model_name, y = RMSE)) +
+    #geom_boxplot(outlier.shape = NA) +
+    geom_point(position = position_jitter(width = 0.25),
+               alpha = 0.25,
+               cex = 0.75,
+               colour = "blue",
+               pch = 4) +
+    geom_violin(fill = NA) +
+    scale_y_continuous(trans="log10") +
+    theme_bw() +
+    facet_grid(Observation ~ .) +
+    scale_x_discrete(labels = model_name_labels) +
+    xlab("Model name") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+)
+
+ggsave(serotype_rmse_plot,
+       file = "serotype_rmse_plot.png",
+       width = 7,
+       height = 7
+)
 
 ```
 
@@ -510,13 +531,15 @@ The fits of the negative binomial can be evaluated through plotting the estimate
     theme_bw() +
     scale_y_continuous(trans="log10") +
     ylab(expression(phi)) +
+    xlab("Model name") +
+    scale_x_discrete(labels = model_name_labels[c(2,4,6,8)]) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 )
 
 ggsave(phi_plot,
        file="serotype_phi_plot.png",
-       height = 8,
-       width = 8)
+       height = 6,
+       width = 6)
 
 ```
 
@@ -665,6 +688,16 @@ write.csv(best_fitting_output,
           quote = F,
           row.names = F)
 
+write.csv(best_fitting_output %>%
+            dplyr::select(type,nu,nu_lower,nu_upper) %>%
+            dplyr::rename(invasiveness = nu) %>%
+            dplyr::rename(invasiveness_lower = nu_lower) %>%
+            dplyr::rename(invasiveness_upper = nu_upper) %>%
+            dplyr::distinct(),
+          file = "Dataset_S1.csv",
+          quote = F,
+          row.names = F)
+
 ```
 
 ## Plot study-specific scale factors
@@ -715,7 +748,7 @@ pv_full_adjusted_type_specific_poisson_fit <-
 rhat_plot <- plot(pv_full_adjusted_type_specific_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
 
 trace_plot <- rstan::traceplot(pv_full_adjusted_type_specific_poisson_fit, pars = "lp__") +
-                theme(axis.text.x = element_text(angle = 90))
+                theme(axis.text.x = element_text(angle = 90, size = 8))
 
 best_fitting_pv_model_validation_plot <- 
   cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
@@ -778,17 +811,18 @@ pv_best_fitting_output %<>%
                                                 use_sample_size = TRUE))
 
 (joint_invasiveness_plot <-
-    cowplot::plot_grid(plotlist = list(invasiveness_plot, pv_invasiveness_plot),
+    cowplot::plot_grid(plotlist = list(invasiveness_plot + theme(legend.position = "none"), pv_invasiveness_plot),
                        nrow = 2,
                        ncol = 1,
+                       rel_heights = c(1,1.2),
                        labels = "AUTO"
                        )
 )
 
 ggsave(joint_invasiveness_plot,
-       file = "join_infant_serotype_plot.png",
+       file = "joint_infant_serotype_plot.png",
        height = 10,
-       width = 8)
+       width = 9)
 
 ```
 
@@ -1172,17 +1206,26 @@ carriage_duration.df %<>%
   dplyr::select(type,carriage_duration,classification,nu,nu_lower,nu_upper) %>%
   dplyr::distinct()
 
-ggplot(carriage_duration.df,
-       aes(x = carriage_duration,
-           y = nu,
-           ymin = nu_lower,
-           ymax = nu_upper,
-           colour = classification)) +
-  geom_point() +
-  geom_errorbar() +
-  scale_colour_manual(values = vaccine_colours) +
-  ggrepel::geom_label_repel(aes(label = type)) +
-  scale_y_continuous(trans = "log10") +
-  theme_bw()
+(invasiveness_v_duration_plot <-
+  ggplot(carriage_duration.df,
+         aes(x = carriage_duration,
+             y = nu,
+             ymin = nu_lower,
+             ymax = nu_upper,
+             colour = classification)) +
+    geom_point() +
+    geom_errorbar() +
+    scale_colour_manual(values = vaccine_colours) +
+    ggrepel::geom_label_repel(aes(label = type)) +
+    scale_y_continuous(trans = "log10") +
+    ylab(expression(nu)) +
+    xlab("Carriage duration relative to serotype 6A/C") +
+    theme_bw()
+)
+
+ggsave(invasiveness_v_duration_plot,
+       file = "invasiveness_v_duration.png",
+       height = 8,
+       width = 8)
 
 ```

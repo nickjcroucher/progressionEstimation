@@ -46,11 +46,11 @@ model {
   // iterate over datasets
   for (index in 1:n_obs) {
 
-    // Calculate prior probability for carriage frequency
-    target += beta_lpdf(rho_ij[index] | 1, 1);
-
     // Get serotype
     int j = j_values[index];
+
+    // Calculate prior probability for carriage frequency
+    target += beta_lpdf(rho_ij[index] | 1, 1);
 
     // calculate likelihood given data
     target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);

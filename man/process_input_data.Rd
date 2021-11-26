@@ -4,19 +4,28 @@
 \alias{process_input_data}
 \title{Generate model input from input data frame}
 \usage{
-process_input_data(input_df, subtype = "categorisation")
+process_input_data(
+  input_df,
+  type = "type",
+  use_strain = FALSE,
+  combine_strain = FALSE,
+  condense = FALSE
+)
 }
 \arguments{
 \item{input_df}{Data frame containing details of case-carrier studies}
 
-\item{subtype}{Name of column in input data frame used for subtyping information}
+\item{type}{Name of column in input data frame used for typing information}
+
+\item{use_strain}{Boolean specifying whether strain information should be used in addition to type information}
+
+\item{combine_strain}{Boolean specifying whether strain information should be combined with type information}
+
+\item{condense}{Boolean specifying whether repeated entries of the same type should be condensed into a single entry}
 }
 \value{
 A list of lists used as an input to stan models
 }
 \description{
 Generate model input from input data frame
-}
-\examples{
-process_input_data(S_pneumoniae_infant_serotype, subtype = "categorisation")
 }

@@ -33,6 +33,7 @@ transformed parameters {
   // calculate invasiveness on a real scale
   vector<lower=0,upper=10.0>[j_max] nu_j;
   real phi_nb;
+  real midpoint_inv = pow(10, -2.5); // midpoint of invasiveness range
 
   for (j in 1:j_max) {
     nu_j[j] = pow(10, log_nu_j[j]);
@@ -52,7 +53,7 @@ model {
   }
 
   // Calculate prior probability for precision parameter
-  target += exponential_lpdf(recip_phi | 1);
+  target += exponential_lpdf(recip_phi | midpoint_inv);
 
   // iterate over datasets
   for (index in 1:n_obs) {

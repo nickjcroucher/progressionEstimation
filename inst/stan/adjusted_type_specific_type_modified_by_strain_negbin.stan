@@ -47,6 +47,7 @@ transformed parameters {
   real tau_mod = 0.5; // scale parameter of Cauchy for strain invasiveness
   vector<lower=0,upper=10.0>[j_max] nu_j;
   vector[k_max] nu_k;
+  real midpoint_inv = pow(10, -2.5); // midpoint of invasiveness range
 
   // calculate serotype invasiveness on a real scale
   for (j in 1:j_max) {
@@ -88,7 +89,7 @@ model {
   }
 
   // Calculate prior probability for precision parameter
-  target += exponential_lpdf(recip_phi | 1);
+  target += exponential_lpdf(recip_phi | midpoint_inv);
 
   // iterate over datasets
   for (index in 1:n_obs) {

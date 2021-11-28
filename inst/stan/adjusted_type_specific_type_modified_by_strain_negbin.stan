@@ -32,7 +32,7 @@ parameters {
   vector<lower=-pi()/2, upper=pi()/2>[i_max-1] gamma_varying;
 
   // negative binomial overdispersions
-  real<lower=-3,upper=3> log_phi_nb;
+  real recip_phi;
 
 }
 
@@ -65,7 +65,7 @@ transformed parameters {
   }
 
   // calculate negative binomial overdispersion
-  phi_nb = pow(10, log_phi_nb);
+  phi_nb = pow(1.0/recip_phi,2);
 
 }
 
@@ -88,7 +88,7 @@ model {
   }
 
   // Calculate prior probability for precision parameter
-  target += uniform_lpdf(log_phi_nb | -3, 3);
+  target += exponential_lpdf(recip_phi | 1);
 
   // iterate over datasets
   for (index in 1:n_obs) {

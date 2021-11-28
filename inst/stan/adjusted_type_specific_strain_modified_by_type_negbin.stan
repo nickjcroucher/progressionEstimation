@@ -32,7 +32,7 @@ parameters {
   vector<lower=-pi()/2, upper=pi()/2>[i_max-1] gamma_varying;
 
   // negative binomial overdispersions
-  real recip_phi;
+  real phi_nb;
 
 }
 
@@ -40,7 +40,6 @@ transformed parameters {
 
   // declare transformed parameters
   vector[i_max] gamma_i;
-  real phi_nb;
   real mu = 0; // position parameter of Cauchy for gamma
   real tau = 2; // scale parameter of Cauchy for gamma
   real mu_mod = 0; // position parameter of Cauchy for strain invasiveness
@@ -65,9 +64,6 @@ transformed parameters {
     gamma_i[i] = pow(10, mu + tau * tan(gamma_varying[i-1]));
   }
 
-  // calculate negative binomial overdispersion
-  phi_nb = pow(1.0/recip_phi,2);
-
 }
 
 // The model to be estimated
@@ -89,7 +85,7 @@ model {
   }
 
   // Calculate prior probability for precision parameter
-  target += exponential_lpdf(recip_phi | 1);
+  target += exponential_lpdf(phi_nb | midpoint_inv);
 
   // iterate over datasets
   for (index in 1:n_obs) {

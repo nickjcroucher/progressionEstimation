@@ -29,7 +29,7 @@ parameters {
   vector<lower=-1.25, upper=1.25>[j_max] log_nu_j;
 
   // negative binomial overdispersions
-  real recip_phi;
+  real phi_nb;
 
 }
 
@@ -38,7 +38,6 @@ transformed parameters {
   // declare transformed parameters
   vector<lower=0,upper=10.0>[k_max] nu_k;
   vector[j_max] nu_j;
-  real phi_nb;
   real mu_mod = 0; // position parameter of Cauchy for strain invasiveness
   real tau_mod = 0.5; // scale parameter of Cauchy for strain invasiveness
   real midpoint_inv = pow(10, -2.5); // midpoint of invasiveness range
@@ -52,9 +51,6 @@ transformed parameters {
   for (k in 1:k_max) {
     nu_k[k] = pow(10, log_nu_k[k]);
   }
-
-  // calculate negative binomial overdispersion
-  phi_nb = pow(1.0/recip_phi,2);
 
 }
 
@@ -72,7 +68,7 @@ model {
   }
 
   // Calculate prior probability for precision parameter
-  target += exponential_lpdf(recip_phi | midpoint_inv);
+  target += exponential_lpdf(phi_nb | midpoint_inv);
 
   // iterate over datasets
   for (index in 1:n_obs) {

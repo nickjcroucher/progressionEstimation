@@ -24,7 +24,7 @@ parameters {
   real<lower=-6,upper=1.0> log_nu;
 
   // negative binomial overdispersions
-  real recip_phi;
+  real phi_nb;
 
 }
 
@@ -32,15 +32,11 @@ parameters {
 transformed parameters {
 
   real<lower=0.0,upper=10.0> nu;
-  real phi_nb;
   real midpoint_inv = pow(10, -2.5); // midpoint of invasiveness range
 
   // calculate invasiveness on a real scale
   //  vector<lower=0,upper=1.0>[j_max] nu_j;
   nu = pow(10,log_nu);
-
-  // calculate negative binomial overdispersion
-  phi_nb = pow(1.0/recip_phi,2);
 
 }
 
@@ -51,7 +47,7 @@ model {
   target += uniform_lpdf(log_nu | -6, 1);
 
   // Calculate prior probability for precision parameter
-  target += exponential_lpdf(recip_phi | 1);
+  target += exponential_lpdf(phi_nb | midpoint_inv);
 
   // iterate over datasets
   for (index in 1:n_obs) {

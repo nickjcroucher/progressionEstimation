@@ -32,7 +32,7 @@ parameters {
 transformed parameters {
 
   real<lower=0.0,upper=10.0> nu;
-  real midpoint_inv = pow(10, 2.5); // midpoint of invasiveness range
+  real midpoint_inv = log(2.0)/pow(10, -2.5); // midpoint of invasiveness range
 
   // calculate invasiveness on a real scale
   //  vector<lower=0,upper=1.0>[j_max] nu_j;

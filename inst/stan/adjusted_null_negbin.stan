@@ -37,7 +37,7 @@ transformed parameters {
   vector[i_max] gamma_i;
   real mu = 0; // position parameter of Cauchy for gamma
   real tau = 2; // scale parameter of Cauchy for gamma
-  real midpoint_inv = pow(10, 2.5); // midpoint of invasiveness range
+  real midpoint_inv = log(2.0)/pow(10, -2.5); // midpoint of invasiveness range
 
   // calculate invasiveness on a real scale
   real<lower=0,upper=10.0> nu;

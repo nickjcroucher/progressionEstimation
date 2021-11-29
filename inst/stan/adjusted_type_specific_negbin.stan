@@ -37,7 +37,6 @@ transformed parameters {
   vector[i_max] gamma_i;
   real mu = 0; // position parameter of Cauchy for gamma
   real tau = 2; // scale parameter of Cauchy for gamma
-  real midpoint_inv = log(2.0)/pow(10, -2.5); // midpoint of invasiveness range
 
   // calculate invasiveness on a real scale
   vector<lower=0,upper=10.0>[j_max] nu_j;
@@ -67,7 +66,7 @@ model {
   }
 
   // Calculate prior probability for precision parameter
-  target += exponential_lpdf(phi_nb | midpoint_inv);
+  target += exponential_lpdf(phi_nb | 1);
 
   // iterate over datasets
   for (index in 1:n_obs) {

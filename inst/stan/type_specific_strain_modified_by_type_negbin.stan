@@ -29,7 +29,7 @@ parameters {
   vector<lower=-1.25, upper=1.25>[j_max] log_nu_j;
 
   // negative binomial overdispersions
-  real phi_nb;
+  real<lower=0> phi_nb;
 
 }
 

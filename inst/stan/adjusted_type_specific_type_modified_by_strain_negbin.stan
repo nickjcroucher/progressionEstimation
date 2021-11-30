@@ -32,7 +32,7 @@ parameters {
   vector<lower=-pi()/2, upper=pi()/2>[i_max-1] gamma_varying;
 
   // negative binomial overdispersions
-  real phi_nb;
+  real<lower=0> phi_nb;
 
 }
 

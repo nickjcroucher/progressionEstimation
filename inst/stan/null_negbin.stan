@@ -24,7 +24,7 @@ parameters {
   real<lower=-6,upper=1.0> log_nu;
 
   // negative binomial overdispersions
-  real phi_nb;
+  real<lower=0> phi_nb;
 
 }
 

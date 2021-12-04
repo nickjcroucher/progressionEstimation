@@ -1,0 +1,11 @@
+Model,log_Bayes_factor
+serotype_specific_strain_modified_poisson,0
+serotype_specific_negbin,-5.59320690601498
+serotype_specific_strain_modified_negbin,-5.98567111588341
+serotype_specific_poisson,-24.6071372892982
+strain_specific_serotype_modified_poisson,-25.2688270257682
+strain_specific_serotype_modified_negbin,-29.9794458670223
+strain_and_serotype_specific_poisson,-33.292018864351
+strain_specific_negbin,-33.9402247131873
+strain_and_serotype_specific_negbin,-37.3258609345287
+strain_specific_poisson,-49.4616422980961

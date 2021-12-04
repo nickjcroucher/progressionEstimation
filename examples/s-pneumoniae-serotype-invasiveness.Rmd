@@ -29,8 +29,8 @@ require(xlsx)
 
 # Load stan package
 library(progressionEstimation)
-pkgbuild::compile_dll()
-roxygen2::roxygenize(package.dir = "..")
+#pkgbuild::compile_dll()
+#roxygen2::roxygenize(package.dir = "..")
 
 # Define serotype categories and palettes
 vaccine_types <- list(
@@ -60,8 +60,8 @@ model_name_labels <-
     "null negative binomial",
     "type-specific Poisson",
     "type-specific negative binomial",
-    "study-adjusted null Poisson",
-    "study-adjusted null negative binomial",
+    "study-adjusted Poisson",
+    "study-adjusted negative binomial",
     "study-adjusted type-specific Poisson",
     "study-adjusted type-specific negative binomial"
   )
@@ -72,7 +72,7 @@ model_name_labels <-
 
 The dataset used in this analysis is contained in the `S_pneumoniae_infant_serotype` object, which includes data from `r S_pneumoniae_infant_serotype %>% dplyr::select(study) %>% dplyr::n_distinct()` studies on `r S_pneumoniae_infant_serotype %>% dplyr::select(type) %>% dplyr::n_distinct()` serotypes. The distribution of samples between each study can be plotted, if they are ranked by the mean number of carriage and disease isolates:
 
-``` {r Plot distribution by study, include = FALSE}
+``` {r Plot distribution by study}
 
 studies_by_size <-
   S_pneumoniae_infant_serotype %>%
@@ -106,7 +106,7 @@ full_epi_data_plot <-
 
 The total number of observations for each serotype can be similarly plotted:
 
-``` {r Plot distribution by serotype, include = FALSE}
+``` {r Plot distribution by serotype}
 
 serotype_by_count <-
   S_pneumoniae_infant_serotype %>%
@@ -145,7 +145,7 @@ serotype_frequency_plot <-
 )
 
 ggsave(combined_full_epi_data_plot,
-       file = "full_epi_data_plot.png",
+       file = "full_epi_data_plot.pdf",
        height = 12,
        width = 8
 )
@@ -154,7 +154,7 @@ ggsave(combined_full_epi_data_plot,
 
 As many of these serotypes are rare, to facilitate model fitting, we exclude any serotype for which the maximum number of observations is below five:
 
-``` {r Plot distribution by serotype in filtered dataset, include = FALSE}
+``` {r Plot distribution by serotype in filtered dataset}
 
 threshold_count <- 5
 
@@ -221,7 +221,7 @@ filtered_serotype_frequency_plot <-
 )
 
 ggsave(combined_filtered_epi_data_plot,
-       file = "filtered_epi_data_plot.png",
+       file = "filtered_epi_data_plot.pdf",
        height = 12,
        width = 8
 )
@@ -396,7 +396,7 @@ rhat_plots <- lapply(fit_list, plot_rhat)
 combined_rhat_plots <- cowplot::plot_grid(plotlist = rhat_plots, ncol = 4, nrow = 2, labels = "AUTO")
 
 ggsave(combined_rhat_plots,
-       file = "infant_combined_rhat_plots.png",
+       file = "infant_combined_rhat_plots.pdf",
        width = 8,
        height = 6)
 
@@ -418,7 +418,7 @@ trace_plots <- lapply(fit_list, plot_lp)
 combined_trace_plots <- cowplot::plot_grid(plotlist = trace_plots, ncol = 4, nrow = 2, labels = "AUTO")
 
 ggsave(combined_trace_plots,
-       file = "infant_combined_trace_plots.png",
+       file = "infant_combined_trace_plots.pdf",
        width = 8,
        height = 6)
 
@@ -455,7 +455,7 @@ pred_v_obs_plot <-
                      rel_heights = c(1,0.1))
 
 ggsave(pred_v_obs_plot,
-       file = "infant_serotypes_pred_v_obs_plot.png",
+       file = "infant_serotypes_pred_v_obs_plot.pdf",
        height = 20,
        width = 10)
 
@@ -506,7 +506,7 @@ obs_pred_df <-
 )
 
 ggsave(serotype_rmse_plot,
-       file = "serotype_rmse_plot.png",
+       file = "serotype_rmse_plot.pdf",
        width = 7,
        height = 7
 )
@@ -537,7 +537,7 @@ The fits of the negative binomial can be evaluated through plotting the estimate
 )
 
 ggsave(phi_plot,
-       file="serotype_phi_plot.png",
+       file="serotype_phi_plot.pdf",
        height = 6,
        width = 6)
 
@@ -547,7 +547,7 @@ ggsave(phi_plot,
 
 The model likelihoods can be compared using leave-one-out cross-validation:
 
-``` {r Comparison with LOO-CV using full log likelihood, include = FALSE}
+``` {r Comparison with LOO-CV using full log likelihood}
 
 loo_comparison <- progressionEstimation::compare_model_fits_with_loo(fit_list,
                                                                      use_moments = FALSE,
@@ -557,11 +557,16 @@ loo_comparison %>%
   kableExtra::kable()  %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
+write.csv(loo_comparison,
+          file = "child_serotype_loo_comparison.csv",
+          quote = FALSE,
+          row.names = FALSE)
+
 ```
 
 The Pareto distribution k values are too high for robust estimates of the ELPD. This reflects many of the points being 
 
-``` {r Comparison with LOO-CV using disease distribution log likelihood, include = FALSE}
+``` {r Comparison with LOO-CV using disease distribution log likelihood}
 
 disease_loo_comparison <- progressionEstimation::compare_model_fits_with_loo(fit_list,
                                                                      log_lik_param = "disease_log_lik",
@@ -572,20 +577,32 @@ disease_loo_comparison %>%
   kableExtra::kable()  %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
+write.csv(disease_loo_comparison,
+          file = "child_disease_serotype_loo_comparison.csv",
+          quote = FALSE,
+          row.names = FALSE)
+
 ```
 
 ## Run model comparison with Bayes factors
 
 As the models can instead be compared with Bayes factors:
 
-``` {r Comparison with BF, include = FALSE}
+``` {r Comparison with BF}
 
-bf_comparison <- progressionEstimation::compare_model_fits_with_bf(fit_list,
-                                                                   num_iter = n_iter,
-                                                                   num_threads = n_core)
+bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fit_list,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+
 bf_comparison %>%
   kableExtra::kable()  %>%
   kableExtra::kable_styling(latex_options = "scale_down")
+
+write.csv(bf_comparison,
+          file = "child_disease_serotype_bf_comparison.csv",
+          quote = FALSE,
+          row.names = FALSE)
 
 ```
 
@@ -602,18 +619,18 @@ full_infant_serotype_invasiveness <-
       )
     )
 
-full_adjusted_type_specific_poisson_fit <- 
+full_adjusted_type_specific_negbin_fit <- 
   progressionEstimation::fit_progression_rate_model(full_infant_serotype_invasiveness,
                                                     type_specific = TRUE,
                                                     location_adjustment = TRUE,
-                                                    stat_model = "poisson",
+                                                    stat_model = "negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
 
-rhat_plot <- plot(full_adjusted_type_specific_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
+rhat_plot <- plot(full_adjusted_type_specific_negbin_fit, plotfun = "rhat", binwidth = 0.00005)
 
-trace_plot <- rstan::traceplot(full_adjusted_type_specific_poisson_fit, pars = "lp__") +
+trace_plot <- rstan::traceplot(full_adjusted_type_specific_negbin_fit, pars = "lp__") +
                 theme(axis.text.x = element_text(angle = 90))
 
 best_fitting_model_validation_plot <- cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
@@ -622,7 +639,7 @@ best_fitting_model_validation_plot <- cowplot::plot_grid(plotlist = list(rhat_pl
                    labels = "AUTO")
 
 ggsave(best_fitting_model_validation_plot,
-       file = "best_fitting_infant_model_validation_plot.png",
+       file = "best_fitting_infant_model_validation_plot.pdf",
        width = 8,
        height = 6)
 
@@ -634,7 +651,7 @@ mixedrank = function(x) order(gtools::mixedorder(as.character(x)))
 
 # Annotate serotypes by status
 best_fitting_output <- 
-  progressionEstimation::process_progression_rate_model_output(full_adjusted_type_specific_poisson_fit,
+  progressionEstimation::process_progression_rate_model_output(full_adjusted_type_specific_negbin_fit,
                                                                S_pneumoniae_infant_serotype) %>%
     dplyr::mutate("classification" = dplyr::case_when(
         type %in% vaccine_types[["PCV7"]] ~ "PCV7",
@@ -679,12 +696,12 @@ best_fitting_output %<>%
                                                 use_sample_size = TRUE))
 
 ggsave(invasiveness_plot,
-       file = "full_serotype_invasiveness_plot.png",
+       file = "full_serotype_invasiveness_plot.pdf",
        height = 8,
        width = 8)
 
 write.csv(best_fitting_output,
-          file = "study_adjusted_type_specific_poisson_serotype_fit.csv",
+          file = "study_adjusted_type_specific_negbin_serotype_fit.csv",
           quote = F,
           row.names = F)
 
@@ -706,6 +723,11 @@ write.csv(best_fitting_output %>%
 
 (scale_factor_plot <-
   progressionEstimation::plot_study_scale_factors(best_fitting_output))
+
+ggsave(scale_factor_plot,
+       file = "serotype_scale_factor_plot.png",
+       width = 8,
+       height = 6)
 
 ```
 
@@ -736,18 +758,18 @@ pv_S_pneumoniae_infant_serotype %<>%
 pv_full_infant_serotype_invasiveness <- 
   progressionEstimation::process_input_data(pv_S_pneumoniae_infant_serotype)
 
-pv_full_adjusted_type_specific_poisson_fit <- 
+pv_full_adjusted_type_specific_negbin_fit <- 
   progressionEstimation::fit_progression_rate_model(pv_full_infant_serotype_invasiveness,
                                                     type_specific = TRUE,
                                                     location_adjustment = TRUE,
-                                                    stat_model = "poisson",
+                                                    stat_model = "negbin",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
                                                     num_cores = n_core)
 
-rhat_plot <- plot(pv_full_adjusted_type_specific_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
+rhat_plot <- plot(pv_full_adjusted_type_specific_negbin_fit, plotfun = "rhat", binwidth = 0.00005)
 
-trace_plot <- rstan::traceplot(pv_full_adjusted_type_specific_poisson_fit, pars = "lp__") +
+trace_plot <- rstan::traceplot(pv_full_adjusted_type_specific_negbin_fit, pars = "lp__") +
                 theme(axis.text.x = element_text(angle = 90, size = 8))
 
 best_fitting_pv_model_validation_plot <- 
@@ -757,7 +779,7 @@ best_fitting_pv_model_validation_plot <-
                    labels = "AUTO")
 
 ggsave(best_fitting_pv_model_validation_plot,
-       file = "best_fitting_pv_infant_model_validation_plot.png",
+       file = "best_fitting_pv_infant_model_validation_plot.pdf",
        width = 8,
        height = 6)
 
@@ -767,7 +789,7 @@ ggsave(best_fitting_pv_model_validation_plot,
 
 pv_best_fitting_output <- 
   progressionEstimation::process_progression_rate_model_output(
-    pv_full_adjusted_type_specific_poisson_fit,                                                 pv_S_pneumoniae_infant_serotype) %>%
+    pv_full_adjusted_type_specific_negbin_fit,                                                 pv_S_pneumoniae_infant_serotype) %>%
       dplyr::mutate("classification" = dplyr::case_when(
           gsub("_pv","",type) %in% vaccine_types[["PCV7"]] ~ "PCV7",
           gsub("_pv","",type) %in% vaccine_types[["PCV10"]] ~ "PCV10",
@@ -820,7 +842,7 @@ pv_best_fitting_output %<>%
 )
 
 ggsave(joint_invasiveness_plot,
-       file = "joint_infant_serotype_plot.png",
+       file = "joint_infant_serotype_plot.pdf",
        height = 10,
        width = 9)
 
@@ -970,9 +992,9 @@ combined_invasiveness_df <-
 # Plot comparison of invasiveness estimates
 (fixed_effects_comparison <-
   ggplot(combined_invasiveness_df,
-       aes(x = Invasiveness_adjusted_type_specific_poisson,
-           xmin = Invasiveness_lower_adjusted_type_specific_poisson,
-           xmax = Invasiveness_upper_adjusted_type_specific_poisson,
+       aes(x = Invasiveness_adjusted_type_specific_negbin,
+           xmin = Invasiveness_lower_adjusted_type_specific_negbin,
+           xmax = Invasiveness_upper_adjusted_type_specific_negbin,
            y = Invasiveness_FE,
            ymin = Invasiveness_lower_FE,
            ymax = Invasiveness_upper_FE,
@@ -985,15 +1007,15 @@ combined_invasiveness_df <-
   scale_color_manual(values = vaccine_colours) +
   theme(legend.position = "bottom") +
   ylab("Invasiveness estimated from log odds ratio") +
-  xlab("Invasivess estimate from adjusted type-specific Poisson (cases per carrier per year)") +
+  xlab("Invasivess estimate from adjusted type-specific negative binomial (cases per carrier per year)") +
   facet_wrap(~Sample_count) +
-  stat_cor(aes(x = Invasiveness_adjusted_type_specific_poisson,
+  stat_cor(aes(x = Invasiveness_adjusted_type_specific_negbin,
                y = Invasiveness_FE),
            inherit.aes = FALSE,
            method = "kendall",
            cor.coef.name = "tau") +
   ggrepel::geom_label_repel(data = combined_invasiveness_df %>%
-                                    dplyr::filter((Invasiveness_adjusted_type_specific_poisson < 0.0005 & Invasiveness_FE > 0) | Serotype == "46"),
+                                    dplyr::filter((Invasiveness_adjusted_type_specific_negbin < 0.0005 & Invasiveness_FE > 0) | Serotype == "46"),
                             aes(label = Serotype)
                             )
 )
@@ -1005,9 +1027,9 @@ combined_invasiveness_df <-
 # Plot comparison of invasiveness estimates
 (random_effects_comparison <-
   ggplot(combined_invasiveness_df,
-         aes(x = Invasiveness_adjusted_type_specific_poisson,
-             xmin = Invasiveness_lower_adjusted_type_specific_poisson,
-             xmax = Invasiveness_upper_adjusted_type_specific_poisson,
+         aes(x = Invasiveness_adjusted_type_specific_negbin,
+             xmin = Invasiveness_lower_adjusted_type_specific_negbin,
+             xmax = Invasiveness_upper_adjusted_type_specific_negbin,
              y = Invasiveness_REML,
              ymin = Invasiveness_lower_REML,
              ymax = Invasiveness_upper_REML,
@@ -1020,15 +1042,15 @@ combined_invasiveness_df <-
     scale_color_manual(values = vaccine_colours) +
     theme(legend.position = "bottom") +
     ylab("Invasiveness estimated from log odds ratio") +
-    xlab("Invasivess estimate from adjusted type-specific Poisson (cases per carrier per year)") +
+    xlab("Invasivess estimate from adjusted type-specific negative binomial (cases per carrier per year)") +
     facet_wrap(~Sample_count) +
-    stat_cor(aes(x = Invasiveness_adjusted_type_specific_poisson,
+    stat_cor(aes(x = Invasiveness_adjusted_type_specific_negbin,
                  y = Invasiveness_REML),
              inherit.aes = FALSE,
              method = "kendall",
              cor.coef.name = "tau") +
     ggrepel::geom_label_repel(data = combined_invasiveness_df %>%
-                                      dplyr::filter((Invasiveness_adjusted_type_specific_poisson < 0.0005 & Invasiveness_FE > 0) | Serotype == "46"),
+                                      dplyr::filter((Invasiveness_adjusted_type_specific_negbin < 0.0005 & Invasiveness_FE > 0) | Serotype == "46"),
                               aes(label = Serotype)
                               )
 )
@@ -1044,7 +1066,7 @@ combined_odds_ratio_plot <-
   )
 
 ggsave(combined_odds_ratio_plot,
-       file = "combined_odds_ratio_plot.png",
+       file = "combined_odds_ratio_plot.pdf",
        width = 8,
        height = 12)
 
@@ -1056,7 +1078,7 @@ This comparison can be extended to location-specific invasiveness factors, which
 
 netherland_pre_pcv_invasiveness_df <-
   progressionEstimation::get_type_invasiveness_for_study(S_pneumoniae_infant_serotype,
-                         full_adjusted_type_specific_poisson_fit,
+                         full_adjusted_type_specific_negbin_fit,
                          study = "Netherlands.post.PCV10")
 
  netherland_pre_pcv_invasiveness_df %<>%
@@ -1135,9 +1157,9 @@ netherlands_or_comparison_df <-
     scale_color_manual(values = vaccine_colours) +
     theme(legend.position = "bottom") +
     ylab("Invasiveness estimated from log odds ratio") +
-    xlab("Invasivess estimate from adjusted type-specific Poisson (cases per carrier per year)") +
+    xlab("Invasivess estimate from adjusted type-specific negative binomial (cases per carrier per year)") +
     facet_wrap(~Sample_count) +
-    stat_cor(aes(x = Invasiveness_adjusted_type_specific_poisson,
+    stat_cor(aes(x = Invasiveness_adjusted_type_specific_negbin,
                  y = Invasiveness_FE),
              inherit.aes = FALSE,
              method = "kendall",
@@ -1168,9 +1190,9 @@ The same comparison can be undertaken against odds ratios calculated with random
     scale_color_manual(values = vaccine_colours) +
     theme(legend.position = "bottom") +
     ylab("Invasiveness estimated from log odds ratio") +
-    xlab("Invasivess estimate from adjusted type-specific Poisson (cases per carrier per year)") +
+    xlab("Invasivess estimate from adjusted type-specific negative binomial (cases per carrier per year)") +
     facet_wrap(~Sample_count) +
-    stat_cor(aes(x = Invasiveness_adjusted_type_specific_poisson,
+    stat_cor(aes(x = Invasiveness_adjusted_type_specific_negbin,
                  y = Invasiveness_REML),
              inherit.aes = FALSE,
              method = "kendall",
@@ -1185,7 +1207,7 @@ combined_netherlands_or_comparison_plot <-
                      labels = "AUTO")
 
 ggsave(combined_netherlands_or_comparison_plot,
-       file = "netherlands_or_comparison.png",
+       file = "netherlands_or_comparison.pdf",
        height = 8,
        width = 14)
 
@@ -1224,7 +1246,7 @@ carriage_duration.df %<>%
 )
 
 ggsave(invasiveness_v_duration_plot,
-       file = "invasiveness_v_duration.png",
+       file = "invasiveness_v_duration.pdf",
        height = 8,
        width = 8)
 

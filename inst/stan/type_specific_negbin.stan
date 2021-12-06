@@ -24,7 +24,7 @@ parameters {
   vector<lower=-6,upper=1.0>[j_max] log_nu_j;
 
   // negative binomial overdispersions
-  real<lower=-3,upper=3> log_phi_nb;
+  real<lower=0> phi_nb;
 
 }
 
@@ -32,19 +32,23 @@ transformed parameters {
 
   // calculate invasiveness on a real scale
   vector<lower=0,upper=10.0>[j_max] nu_j;
-  real phi_nb;
 
   for (j in 1:j_max) {
     nu_j[j] = pow(10, log_nu_j[j]);
   }
 
-  // calculate negative binomial overdispersion
-  phi_nb = pow(10, log_phi_nb);
-
 }
 
 // The model to be estimated
 model {
+
+  // Calculate prior probability for types
+  for (j in 1:j_max) {
+    target += uniform_lpdf(log_nu_j[j] | -6, 1);
+  }
+
+  // Calculate prior probability for precision parameter
+  target += exponential_lpdf(phi_nb | 1);
 
   // iterate over datasets
   for (index in 1:n_obs) {
@@ -52,10 +56,8 @@ model {
     // Get serotype
     int j = j_values[index];
 
-    // calculate prior probability
-    target += uniform_lpdf( log_nu_j[j] | -6, 1);
+    // Calculate prior probability for carriage frequency
     target += beta_lpdf(rho_ij[index] | 1, 1);
-    target += uniform_lpdf(log_phi_nb | -3, 3);
 
     // calculate likelihood given data
     target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);

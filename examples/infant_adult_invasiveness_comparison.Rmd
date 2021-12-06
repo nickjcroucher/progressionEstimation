@@ -1,0 +1,172 @@
+---
+title: "Comparison of infant and adult progression rates"
+author: "Nicholas Croucher"
+date: "03/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Load dependencies
+require(tidyverse)
+require(magrittr)
+require(rstan)
+require(bridgesampling)
+require(loo)
+require(cowplot)
+require(ggrepel)
+require(xlsx)
+require(gtools)
+# Load stan package
+library(progressionEstimation)
+
+###################
+# Data structures #
+###################
+
+# Define serotype categories and palettes
+vaccine_types <- list(
+  "PCV7" = c("4","6B","9V","14","18C","19F","23F"),
+  "PCV10" = c("1","5","7F"),
+  "PCV13" = c("6A","3","19A"),
+  "PCV15" = c("22F","33F"),
+  "PCV20" = c("8","10A","11A","12F","15B/C"),
+  "PPV23" = c("2","9N","17F","20")
+)
+
+vaccine_colours <- c("No PCV" = "blue",
+                     "PCV7" = "red",
+                     "PCV10" = "orange",
+                     "PCV13" = "coral2",
+                     "PCV15" = "pink",
+                     "PCV20" = "purple",
+                     "PPV23" = "black")
+
+epi_colors <- c(
+  "carriage" = "skyblue",
+  "disease" = "cornflowerblue"
+)
+
+model_name_labels <-
+  c(
+    "type-specific Poisson",
+    "type-specific negative binomial",
+    "strain-specific Poisson",
+    "strain-specific negative binomial",
+    "type-specific strain-modified Poisson",
+    "type-specific strain-modified negative binomial",
+    "strain-specific type-modified Poisson",
+    "strain-specific type-modified negative binomial",
+    "strain- and type-specific Poisson",
+    "strain- and type-specific negative binomial"
+  )
+
+```
+
+## Read data
+
+Read in the adult and child progression rate estimates:
+
+```{r Read in data}
+
+infant_data <- read.csv("Dataset_S1.csv") %>%
+    dplyr::mutate("classification" = dplyr::case_when(
+        type %in% vaccine_types[["PCV7"]] ~ "PCV7",
+        type %in% vaccine_types[["PCV10"]] ~ "PCV10",
+        type %in% vaccine_types[["PCV13"]] ~ "PCV13",
+        type %in% vaccine_types[["PCV15"]] ~ "PCV15",
+        type %in% vaccine_types[["PCV20"]] ~ "PCV20",
+        type %in% vaccine_types[["PPV23"]] ~ "PPV23",
+        TRUE ~ "No PCV"
+      )
+    ) %>%
+    dplyr::mutate(classification = factor(classification, levels = c("PCV7",
+                                                                     "PCV10",
+                                                                     "PCV13",
+                                                                     "PCV15",
+                                                                     "PCV20",
+                                                                     "PPV23",
+                                                                     "No PCV")))
+adult_data <- read.csv("Dataset_S2.csv") %>%
+    dplyr::mutate("classification" = dplyr::case_when(
+        type %in% vaccine_types[["PCV7"]] ~ "PCV7",
+        type %in% vaccine_types[["PCV10"]] ~ "PCV10",
+        type %in% vaccine_types[["PCV13"]] ~ "PCV13",
+        type %in% vaccine_types[["PCV15"]] ~ "PCV15",
+        type %in% vaccine_types[["PCV20"]] ~ "PCV20",
+        type %in% vaccine_types[["PPV23"]] ~ "PPV23",
+        TRUE ~ "No PCV"
+      )
+    ) %>%
+    dplyr::mutate(classification = factor(classification, levels = c("PCV7",
+                                                                     "PCV10",
+                                                                     "PCV13",
+                                                                     "PCV15",
+                                                                     "PCV20",
+                                                                     "PPV23",
+                                                                     "No PCV")))
+
+```
+
+## Plot adult invasiveness
+
+Plot adult invasiveness:
+
+```{r Plot adult invasiveness}
+
+ggplot(adult_data,
+       aes(x = type,
+           y = invasiveness,
+           ymin = invasiveness_lower,
+           ymax = invasiveness_upper,
+           colour = classification)) +
+  geom_point() +
+  geom_errorbar() +
+  scale_colour_manual(values = vaccine_colours) +
+  scale_y_continuous(trans = "log10") +
+  scale_shape_binned(name = "Number of\nisolates",
+                         breaks = c(5,10,25,50,100)) +
+  theme_bw()
+
+(adult_invasiveness_plot <-
+  progressionEstimation::plot_progression_rates(adult_data,
+                                                unit_time = "year",
+                                                type_name = "Serotype",
+                                                colour_col = "classification",
+                                                colour_palette = vaccine_colours,
+                                                use_sample_size = TRUE))
+
+```
+
+## Plot invasiveness comparison
+
+Plot the comparison:
+
+``` {r Plot comparison}
+
+joint_invasiveness <-
+  adult_data %>%
+    dplyr::left_join(
+      infant_data %>%
+        dplyr::rename(infant_nu = nu) %>%
+        dplyr::rename(infant_nu_lower = nu_lower) %>%
+        dplyr::rename(infant_nu_upper = nu_upper)
+    )
+
+ggplot(joint_invasiveness,
+       aes(
+         x = nu,
+         y = infant_nu,
+         xmin = nu_lower,
+         xmax = nu_upper,
+         ymin = infant_nu_lower,
+         ymax = infant_nu_upper,
+         colour = classification
+        )
+       ) +
+  geom_point() +
+  xlab("Progression rate estimate in adults (disease per carrier per year)") +
+  ylab("Progression rate estimate in infants (disease per carrier per year)")
+
+```

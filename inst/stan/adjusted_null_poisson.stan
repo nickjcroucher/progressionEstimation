@@ -50,17 +50,21 @@ transformed parameters {
 // The model to be estimated
 model {
 
+  // Calculate prior probability across all types
+  target += uniform_lpdf(log_nu | -6, 1);
+
+  // Calculate prior probability for study adjustment
+  for (i in 2:i_max) {
+    target += uniform_lpdf(gamma_varying[i-1] | -pi()/2, pi()/2);
+  }
+
   // iterate over datasets
   for (index in 1:n_obs) {
 
     // Get location adjustment
     int i = i_values[index];
-    if (i > 1) {
-      target += uniform_lpdf(gamma_varying[i-1] | -pi()/2, pi()/2);
-    }
 
-    // calculate prior probability
-    target += uniform_lpdf(log_nu | -6, 1);
+    // Calculate prior probability for carriage frequency
     target += beta_lpdf(rho_ij[index] | 1, 1);
 
     // calculate likelihood given data

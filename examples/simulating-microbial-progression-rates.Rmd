@@ -317,7 +317,7 @@ study_adjustment %>%
   kableExtra::kable()  %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 
-````
+```
 
 Finally, when values were simulated under the negative binomial distribution, $\phi$ was set to 1. Hence these starting parameters were combined into a single table:
 
@@ -512,17 +512,6 @@ for (i in 1:8) {
                                                     num_cores = n_core)
 }
 
-# Calculate Bayes factors for model fits to the null Poisson simulations
-null_poisson_bf_comparison <- 
-  progressionEstimation::compare_model_fits_with_bf(fits_to_null_poisson_simulations,
-                                                    num_iter = n_iter,
-                                                    num_threads = n_core)
-
-# Compare model fits to the null Poisson simulations
-null_poisson_bf_comparison %>%
-  kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down")
-
 # Process results from each fit
 null_poisson_simulation_outputs <-
   lapply(
@@ -535,6 +524,20 @@ null_poisson_simulation_outputs <-
 null_poisson_simulation_outputs_df <- 
   process_model_names(dplyr::bind_rows(null_poisson_simulation_outputs)) %>%
   dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
+
+# Calculate Bayes factors for model fits to the null Poisson simulations
+null_poisson_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_null_poisson_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+
+```
+
+``` {r Fitting models to null Poisson data}
+# Compare model fits to the null Poisson simulations
+null_poisson_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
 
 # Plot constant invasiveness output
 null_poisson_plot <-
@@ -559,17 +562,6 @@ for (i in 1:8) {
                                                     num_cores = n_core)
 }
 
-# Calculate Bayes factors for model fits to the null negative binomial simulations
-null_negbin_bf_comparison <- 
-  progressionEstimation::compare_model_fits_with_bf(fits_to_null_negbin_simulations,
-                                                    num_iter = n_iter,
-                                                    num_threads = n_core)
-
-# Compare model fits to the null negative binomial simulations
-null_negbin_bf_comparison %>%
-  kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down")
-
 # Process results from each fit
 null_negbin_simulation_outputs <-
   lapply(
@@ -583,30 +575,22 @@ null_negbin_simulation_outputs_df <-
   process_model_names(dplyr::bind_rows(null_negbin_simulation_outputs)) %>%
   dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
 
+# Calculate Bayes factors for model fits to the null negative binomial simulations
+null_negbin_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_null_negbin_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+```
+
+``` {r Fitting models to null negbin data}
+# Compare model fits to the null negative binomial simulations
+null_negbin_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
 # Plot constant invasiveness output
 null_negbin_plot <-
   plot_constant_invasiveness(null_negbin_simulation_outputs_df)
-
-# Plot invasiveness estimates from each model
-ggplot(data = null_negbin_simulation_outputs_df,
-       aes(x = type,
-           y = nu,
-           colour = model_name,
-           ymin = nu_lower,
-           ymax = nu_upper)) +
-  geom_point(position = position_dodge(width = 0.5)) +
-  geom_errorbar(position = position_dodge(width = 0.5)) +
-  geom_hline(aes(yintercept = true_nu), linetype = "dashed") +
-  ylab(expression(nu~" (cases per carrier per"~italic(t)*")")) +
-  scale_colour_manual(values = model_palette) +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
-
-```
-
-``` {r Combine output plotting for null model fits}
-
-
 
 ```
 
@@ -626,16 +610,6 @@ for (i in 1:8) {
                                                     num_cores = n_core)
 }
 
-type_specific_poisson_bf_comparison <- 
-  progressionEstimation::compare_model_fits_with_bf(fits_to_type_specific_poisson_simulations,
-                                                    num_iter = n_iter,
-                                                    num_threads = n_core)
-
-type_specific_poisson_bf_comparison %>%
-  kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down")
-
-
 # Process results from each fit
 type_specific_poisson_simulation_outputs <-
   lapply(
@@ -649,12 +623,22 @@ type_specific_poisson_simulation_outputs_df <-
   process_model_names(dplyr::bind_rows(type_specific_poisson_simulation_outputs)) %>%
   dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
 
+type_specific_poisson_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_type_specific_poisson_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+```
+
+``` {r Fitting models to type-specific Poisson data}
+type_specific_poisson_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
 # Plot varying invasiveness
 type_specific_poisson_plot <-
   plot_varying_invasiveness(type_specific_poisson_simulation_outputs_df)
 
 ```
-
 
 ### Type-specific negative binomial simulated data
 
@@ -672,15 +656,6 @@ for (i in 1:8) {
                                                     num_cores = n_core)
 }
 
-type_specific_negbin_bf_comparison <- 
-  progressionEstimation::compare_model_fits_with_bf(fits_to_type_specific_negbin_simulations,
-                                                    num_iter = n_iter,
-                                                    num_threads = n_core)
-
-type_specific_negbin_bf_comparison %>%
-  kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down")
-
 # Process results from each fit
 type_specific_negbin_simulation_outputs <-
   lapply(
@@ -693,6 +668,19 @@ type_specific_negbin_simulation_outputs <-
 type_specific_negbin_simulation_outputs_df <- 
   process_model_names(dplyr::bind_rows(type_specific_negbin_simulation_outputs)) %>%
   dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
+
+# Run comparison with Bayes factors
+type_specific_negbin_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_type_specific_negbin_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+```
+
+``` {r Fitting models to type-specific negbin data}
+
+type_specific_negbin_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
 
 # Plot invasiveness estimates from each model
 type_specific_negbin_plot <-
@@ -716,15 +704,6 @@ for (i in 1:8) {
                                                     num_cores = n_core)
 }
 
-study_adjusted_poisson_bf_comparison <- 
-  progressionEstimation::compare_model_fits_with_bf(fits_to_study_adjusted_poisson_simulations,
-                                                    num_iter = n_iter,
-                                                    num_threads = n_core)
-
-study_adjusted_poisson_bf_comparison %>%
-  kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down")
-
 # Process results from each fit
 study_adjusted_poisson_simulation_outputs <-
   lapply(
@@ -738,35 +717,22 @@ study_adjusted_poisson_simulation_outputs_df <-
   process_model_names(dplyr::bind_rows(study_adjusted_poisson_simulation_outputs)) %>%
   dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
 
+# Run comparisons with Bayes factors
+study_adjusted_poisson_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_study_adjusted_poisson_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+```
+
+``` {r Fitting models to study-adjusted Poisson data}
+
+study_adjusted_poisson_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
 # Plot constant invasiveness
 study_adjusted_poisson_plot <-
   plot_constant_invasiveness(study_adjusted_poisson_simulation_outputs_df)
-
-# 
-# # Plot invasiveness estimates from each model
-# ggplot(data = study_adjusted_poisson_simulation_outputs_df,
-#        aes(x = type,
-#            y = nu,
-#            colour = model_name,
-#            ymin = nu_lower,
-#            ymax = nu_upper)) +
-#   geom_point(position = position_dodge(width = 0.5)) +
-#   geom_errorbar(position = position_dodge(width = 0.5)) +
-#   geom_hline(aes(yintercept = true_nu), linetype = "dashed") +
-#   ylab(expression(nu~" (cases per carrier per"~italic(t)*")")) +
-#   scale_colour_manual(values = model_palette) +
-#   theme_bw()
-# 
-# null_pois <- process_progression_rate_model_output(fits_to_null_poisson_simulations[["study-adjusted null Poisson"]],null_poisson_simulation.df)
-# adj_null_pois <- process_progression_rate_model_output(fits_to_study_adjusted_poisson_simulations[["study-adjusted null Poisson"]],study_adjusted_poisson_simulation.df)
-# 
-# ggplot(adj_null_pois, aes(x = true_gamma_i, y = delta)) +
-#   geom_point() +
-#     scale_x_continuous(trans = "log10") +
-#   scale_y_continuous(trans = "log10") +
-#   geom_abline(slope = 1, intercept = 0, linetype = "dashed")
-# 
-# plot_case_carrier_predictions(adj_null_pois)
 
 ```
 
@@ -786,15 +752,6 @@ for (i in 1:8) {
                                                     num_cores = n_core)
 }
 
-study_adjusted_negbin_bf_comparison <- 
-  progressionEstimation::compare_model_fits_with_bf(fits_to_study_adjusted_negbin_simulations,
-                                                    num_iter = n_iter,
-                                                    num_threads = n_core)
-
-study_adjusted_negbin_bf_comparison %>%
-  kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down")
-
 # Process results from each fit
 study_adjusted_negbin_simulation_outputs <-
   lapply(
@@ -808,69 +765,22 @@ study_adjusted_negbin_simulation_outputs_df <-
   process_model_names(dplyr::bind_rows(study_adjusted_negbin_simulation_outputs)) %>%
   dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
 
+# Run comparison with Bayes factors
+study_adjusted_negbin_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_study_adjusted_negbin_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+```
+
+``` {r Fitting models to study-adjusted negbin data}
+
+study_adjusted_negbin_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
 # Plot invasiveness estimates from each model
 study_adjusted_negbin_plot <-
   plot_constant_invasiveness(study_adjusted_negbin_simulation_outputs_df)
-
-# ggplot(data = study_adjusted_negbin_simulation_outputs_df %>%
-#                 dplyr::select(true_nu_j,nu,nu_lower,nu_upper,model_name) %>%
-#                 dplyr::distinct(),
-#        aes(x = true_nu_j,
-#            y = nu,
-#            colour = model_name,
-#            ymin = nu_lower,
-#            ymax = nu_upper)) +
-#   geom_point(position = position_dodge(width = 0.05)) +
-#   geom_errorbar(position = position_dodge(width = 0.05)) +
-#   geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-#   ylab(expression(nu~" (cases per carrier per"~italic(t)*")")) +
-#   scale_colour_manual(values = model_palette) +
-#   scale_x_continuous(trans = "log10") +
-#   scale_y_continuous(trans = "log10") +
-#   theme_bw()
-# 
-# ggplot(data = study_adjusted_negbin_simulation_outputs_df %>%
-#                 dplyr::select(type,true_nu,nu,nu_lower,nu_upper,model_name) %>%
-#                 dplyr::distinct(),
-#        aes(x = type,
-#            y = nu,
-#            colour = model_name,
-#            ymin = nu_lower,
-#            ymax = nu_upper)) +
-#   geom_point(position = position_dodge(width = 0.5)) +
-#   geom_errorbar(position = position_dodge(width = 0.5)) +
-#   geom_hline(aes(yintercept = true_nu), linetype = "dashed") +
-#   ylab(expression(nu~" (cases per carrier per"~italic(t)*")")) +
-#   scale_colour_manual(values = model_palette) +
-#   scale_y_continuous(trans = "log10") +
-#   theme_bw()
-# 
-# 
-# ggplot(data = study_adjusted_negbin_simulation_outputs_df %>%
-#                 dplyr::select(true_nu_j,nu,nu_lower,nu_upper,model_name,delta,true_gamma_i,delta_upper,delta_lower) %>%
-#                 dplyr::distinct(),
-#        aes(x = true_gamma_i,
-#            y = delta,
-#            colour = model_name,
-#            ymin = delta,
-#            ymax = delta_upper)) +
-#   geom_point(position = position_dodge(width = 0.05)) +
-#     scale_colour_manual(values = model_palette) +
-#   geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-#   scale_x_continuous(trans = "log10") +
-#   scale_y_continuous(trans = "log10")
-# 
-# 
-# study_adjusted_fit <- fits_to_study_adjusted_negbin_simulations[["study-adjusted null negative binomial"]]
-# rstan::summary(study_adjusted_fit, pars = "gamma_i")
-# 
-# plot_case_carrier_predictions(study_adjusted_negbin_simulation_outputs[["study-adjusted null negative binomial"]])
-# 
-# ggplot(study_adjusted_negbin_simulation_outputs[["study-adjusted null negative binomial"]],
-#        aes(x = rho_ij*true_gamma_i*true_nu*surveillance_population,
-#            y = disease,
-#            colour = study)) +
-#   geom_point()
 
 ```
 
@@ -890,15 +800,6 @@ for (i in 1:8) {
                                                     num_cores = n_core)
 }
 
-study_adjusted_type_specific_poisson_bf_comparison <- 
-  progressionEstimation::compare_model_fits_with_bf(fits_to_study_adjusted_type_specific_poisson_simulations,
-                                                    num_iter = n_iter,
-                                                    num_threads = n_core)
-
-study_adjusted_type_specific_poisson_bf_comparison %>%
-  kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down")
-
 # Process results from each fit
 study_adjusted_type_specific_poisson_simulation_outputs <-
   lapply(
@@ -911,6 +812,19 @@ study_adjusted_type_specific_poisson_simulation_outputs <-
 study_adjusted_type_specific_poisson_simulation_outputs_df <- 
   process_model_names(dplyr::bind_rows(study_adjusted_type_specific_poisson_simulation_outputs)) %>%
   dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
+
+# Run comparison with Bayes factors
+study_adjusted_type_specific_poisson_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_study_adjusted_type_specific_poisson_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+```
+
+``` {r Fitting models to study-adjusted type-specific Poisson data}
+
+study_adjusted_type_specific_poisson_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
 
 # Plot varying invasiveness
 study_adjusted_type_specific_poisson_plot <-
@@ -934,15 +848,6 @@ for (i in 1:8) {
                                                     num_cores = n_core)
 }
 
-study_adjusted_type_specific_negbin_bf_comparison <- 
-  progressionEstimation::compare_model_fits_with_bf(fits_to_study_adjusted_type_specific_negbin_simulations,
-                                                    num_iter = n_iter,
-                                                    num_threads = n_core)
-
-study_adjusted_type_specific_negbin_bf_comparison %>%
-  kableExtra::kable()  %>%
-  kableExtra::kable_styling(latex_options = "scale_down")
-
 # Process results from each fit
 study_adjusted_type_specific_negbin_simulation_outputs <-
   lapply(
@@ -956,17 +861,27 @@ study_adjusted_type_specific_negbin_simulation_outputs_df <-
   process_model_names(dplyr::bind_rows(study_adjusted_type_specific_negbin_simulation_outputs)) %>%
   dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
 
+# Run comparison with Bayes factors
+study_adjusted_type_specific_negbin_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_study_adjusted_type_specific_negbin_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+```
+
+``` {r Fitting models to study-adjusted type-specific negbin data}
+study_adjusted_type_specific_negbin_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
 # Plot varying invasiveness
 study_adjusted_type_specific_negbin_plot <-
   plot_varying_invasiveness(study_adjusted_type_specific_negbin_simulation_outputs_df)
 
 ```
+
 ## Combine plots
 
-``` {r Combine all plots}
-
-# Save data
-save(null_poisson_bf_comparison,null_poisson_simulation_outputs_df,null_negbin_bf_comparison,null_negbin_simulation_outputs_df,type_specific_poisson_bf_comparison,type_specific_poisson_simulation_outputs_df,type_specific_negbin_bf_comparison,type_specific_negbin_simulation_outputs_df,study_adjusted_poisson_bf_comparison,study_adjusted_poisson_simulation_outputs_df,study_adjusted_negbin_bf_comparison,study_adjusted_negbin_simulation_outputs_df,study_adjusted_type_specific_poisson_bf_comparison,study_adjusted_type_specific_poisson_simulation_outputs_df,study_adjusted_type_specific_poisson_simulation_outputs_df,study_adjusted_type_specific_poisson_bf_comparison,study_adjusted_type_specific_negbin_bf_comparison,study_adjusted_type_specific_negbin_simulation_outputs_df,file = "/Users/ncrouche/Documents/progression_rate_estimation/FOR_RESUB/simulation_output_data.Robj")
+``` {r Combine all plots, message=FALSE, warning=FALSE, fig.height = 15}
 
 # Get all plots
 inv_plot_list <- list(

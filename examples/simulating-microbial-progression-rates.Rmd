@@ -1,0 +1,1065 @@
+---
+title: "Simulation of microbial progression rates"
+author: "Nicholas Croucher"
+date: "25/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#############
+# Libraries #
+#############
+
+library(tidyverse)
+library(magrittr)
+library(kableExtra)
+library(progressionEstimation)
+
+#############
+# Functions #
+#############
+
+process_model_names <- function(input_df) {
+  input_df %<>%
+    dplyr::mutate(model_name = dplyr::case_when(
+                      model_name == "null_poisson" ~ "null Poisson",
+                      model_name == "null_negbin" ~ "null negative binomial",
+                      model_name == "type_specific_poisson" ~ "type-specific Poisson",
+                      model_name == "type_specific_negbin" ~ "type-specific negative binomial",
+                      model_name == "adjusted_null_poisson" ~ "study-adjusted Poisson",
+                      model_name == "adjusted_null_negbin" ~ "study-adjusted negative binomial",
+                      model_name == "adjusted_type_specific_poisson" ~ "study-adjusted type-specific Poisson",
+                      model_name == "adjusted_type_specific_negbin" ~ "study-adjusted type-specific negative binomial"
+                    )
+                  ) %>%
+    dplyr::mutate(model_name = factor(model_name,
+                                      levels = c("null Poisson",
+                                                 "null negative binomial",
+                                                 "type-specific Poisson",
+                                                 "type-specific negative binomial",
+                                                 "study-adjusted Poisson",
+                                                 "study-adjusted negative binomial",
+                                                 "study-adjusted type-specific Poisson",
+                                                 "study-adjusted type-specific negative binomial")
+                                      )
+                  )
+  return(input_df)
+}
+
+plot_constant_invasiveness <- function(input_df) {
+  inv_plot <-
+    ggplot(data = input_df,
+         aes(x = type,
+             y = nu,
+             colour = model_name,
+             ymin = nu_lower,
+             ymax = nu_upper)) +
+    geom_point(position = position_dodge(width = 0.5)) +
+    geom_errorbar(position = position_dodge(width = 0.5)) +
+    geom_hline(aes(yintercept = true_nu), linetype = "dashed") +
+    ylab(expression(atop(nu,"(cases per carrier per"~italic(t)*")"))) +
+    scale_y_continuous(trans = "log10") +
+    scale_colour_manual(values = model_palette, name = "Model name") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
+          legend.box = "horizontal")
+  return(inv_plot)
+}
+
+plot_varying_invasiveness <- function(input_df) {
+  inv_plot <-
+    ggplot(data = input_df %>%
+                    dplyr::select(true_nu_j,nu,nu_lower,nu_upper,model_name) %>%
+                    dplyr::distinct(),
+           aes(x = true_nu_j,
+               y = nu,
+               colour = model_name,
+               ymin = nu_lower,
+               ymax = nu_upper)) +
+      geom_point(position = position_dodge(width = 0.05)) +
+      geom_errorbar(position = position_dodge(width = 0.05)) +
+      geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+      ylab(expression(atop("Inferred"~nu,"(cases per carrier per"~italic(t)*")"))) +
+      xlab(expression("Simulated"~nu~"(cases per carrier per"~italic(t)*")")) +
+      scale_colour_manual(values = model_palette, name = "Model name") +
+      scale_x_continuous(trans = "log10") +
+      scale_y_continuous(trans = "log10") +
+      theme(legend.box = "horizontal") +
+      theme_bw()
+  return(inv_plot)
+}
+
+###################
+# Data structures #
+###################
+
+model_name_labels <-
+  c("null Poisson",
+    "null negative binomial",
+    "type-specific Poisson",
+    "type-specific negative binomial",
+    "study-adjusted null Poisson",
+    "study-adjusted null negative binomial",
+    "study-adjusted type-specific Poisson",
+    "study-adjusted type-specific negative binomial"
+  )
+
+type_specific_bools <- c(FALSE, FALSE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE)
+study_adjustment_bools <- c(FALSE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE)
+stat_model_types <- rep(c("poisson","negbin"),4)
+
+# colours use the npg palette from the excellent ggsci package
+model_palette <- c(
+  "null Poisson" = "#4DBBD5FF",
+  "null negative binomial" = "#8491B4FF",
+  "type-specific Poisson" = "#91D1C2FF",
+  "type-specific negative binomial" = "#00A087FF",
+  "study-adjusted null Poisson" = "#F39B7FFF",
+  "study-adjusted null negative binomial" = "#DC0000FF",
+  "study-adjusted type-specific Poisson" = "#B09C85FF",
+  "study-adjusted type-specific negative binomial" = "#7E6148FF"
+)
+
+```
+
+## Data used for simulations
+
+All simulations use the same randomly-generated set of carriage prevalences ($\rho_{ij}$) for ten types across four locations:
+
+```{r Define random carriage prevalences}
+
+n_types <- 20
+n_studies <- 20
+
+# Fixed for reproducibility - generated with the command `runif(n_types * n_studies, min = 0.0, max = 0.05)`
+random_frequencies <- c(0.0112854470848106, 0.0187007322674617, 0.0311348387273029, 
+0.0201701742364094, 0.0280110965948552, 0.0375650248024613, 0.00604447952937335, 
+0.0131160578341223, 0.0380126537522301, 0.0199922866304405, 0.0221398023655638, 
+0.0166020662058145, 0.0197969890898094, 0.0403149801190011, 0.023370838642586, 
+0.033223592187278, 0.0185184107744135, 0.0366496772738174, 0.013176560564898, 
+0.0268603438511491, 0.0170564980013296, 0.0448135523707606, 0.029134395881556, 
+0.0263401338947006, 0.0261096181464382, 0.0255095961503685, 0.0148207693942823, 
+0.0311727489461191, 0.0167740020086057, 0.0474750041146763, 0.00322461153846234, 
+0.0110048209433444, 0.0149697809829377, 0.00206831324612722, 
+0.033238280354999, 0.0467834593378939, 0.0170373226050287, 0.0334277883172035, 
+0.0188225510530174, 0.0265777291497216, 0.0336028082063422, 0.0244762744288892, 
+0.00901660424424335, 0.0285989120951854, 0.0213617462897673, 
+0.0327196787926368, 0.0189855191390961, 0.0365497993887402, 0.0222931793774478, 
+0.0344638691516593, 0.0473045348771848, 0.0275668352260254, 0.0103936022846028, 
+0.0199861095286906, 0.00966712676454336, 0.0431243154220283, 
+0.0226503554149531, 0.0320369592867792, 0.0184173285146244, 0.0462511372403242, 
+0.00780825280817226, 0.0173906326526776, 0.046042182657402, 0.0261200602748431, 
+0.0272989263758063, 0.00152216666610912, 0.0131516180816107, 
+0.0319843380129896, 0.0414867667015642, 0.0378625916433521, 0.0290876035462134, 
+0.0172185215516947, 0.0421069047180936, 0.0097018611850217, 0.00102687964681536, 
+0.0253014724468812, 0.0145364116993733, 0.0057240700814873, 0.0323238699813373, 
+0.0248379262862727, 0.0209774059941992, 0.00839227006072179, 
+0.000815082713961601, 0.00835843909299001, 0.0452342266100459, 
+0.0371694131172262, 0.00725571844959632, 0.00513721997849643, 
+0.00633085073204711, 0.00811492785578594, 0.0298955515958369, 
+0.0200569947366603, 0.038988624245394, 0.0348119726404548, 0.00790411505149677, 
+0.00368049623211846, 0.0421765157370828, 0.014566557854414, 0.0365241808933206, 
+0.0324071065173484, 0.0366301609901711, 0.0434403889928944, 0.0155695946188644, 
+0.014461904251948, 0.00767266543116421, 0.00334490947425365, 
+0.0226653725956567, 0.00876490221126005, 0.0385092541109771, 
+0.0348551340983249, 0.0049954458954744, 0.0178003755863756, 0.00593857018975541, 
+0.0253478431259282, 0.0253032537177205, 0.0354388283914886, 0.0389099000953138, 
+0.0107885019155219, 0.00478201461955905, 0.00965272795874626, 
+0.0226467557135038, 0.00285583770601079, 0.0262474891380407, 
+0.0480387703981251, 0.0466239742701873, 0.0288450446096249, 0.0105980074265972, 
+0.0209669805830345, 0.0269708277075551, 0.0460666783154011, 0.0195556998602115, 
+0.0353456943994388, 0.032802157709375, 0.0179758346057497, 0.0193514962564223, 
+0.0417565047275275, 0.00180372057948262, 0.0175963953253813, 
+0.0326065520406701, 0.0306057025911286, 0.0244797128601931, 0.0389405019115657, 
+0.00627075150841847, 0.0244550334173255, 0.0289731955388561, 
+0.0154362588422373, 0.0393108951393515, 0.00217203859938309, 
+0.0220791598316282, 0.0190714539494365, 0.0422822709311731, 0.00951074230251834, 
+0.0117925990722142, 0.0111012336448766, 0.030641111091245, 0.0328600553330034, 
+0.014452387066558, 0.0275969100184739, 0.0180722309276462, 0.0213001633295789, 
+0.0413058013888076, 0.00206934002926573, 0.0111502067069523, 
+0.0363874163012952, 0.0405077884555794, 0.0409669260494411, 0.0394435907481238, 
+0.0346825369400904, 0.0454266948276199, 0.0278246997506358, 0.0220290031516925, 
+0.0285597340553068, 0.0215621337643825, 0.045790169085376, 0.0107161981752142, 
+0.0478521265438758, 0.00148471924476326, 0.0349755512899719, 
+0.0161152612767182, 0.0481614385847934, 0.0273652000701986, 0.0160709890536964, 
+0.0216391602763906, 0.0160359618952498, 0.0225150528131053, 0.0123395793489181, 
+0.0466509378515184, 0.03214583984809, 0.0438130235881545, 0.0498700820258819, 
+0.0192799343727529, 0.0190507285995409, 0.00710169539088383, 
+0.038301690784283, 0.0401157875428908, 0.0399076653993689, 0.0443770312820561, 
+0.00385477303061634, 0.0225021968130022, 0.0352852548006922, 
+0.0387871787883341, 0.0406620534951799, 0.0201268206350505, 0.00992618574528024, 
+0.0193602862069383, 0.021972907660529, 0.0148243866977282, 0.0174799168016762, 
+0.0491288382792845, 0.0149792475393042, 0.0315820503863506, 0.0447678968659602, 
+0.023750681092497, 0.0108494431362487, 0.0169482059776783, 0.0178158624912612, 
+0.0478769429959357, 0.0338811380672269, 0.0331156545551494, 0.00078089190647006, 
+0.00193639055360109, 0.0101450332324021, 0.0221783939749002, 
+0.0163031119154766, 0.0466493893414736, 0.0103397569386289, 0.000470604887232184, 
+0.0251343423500657, 0.0021907752729021, 0.00119928912026808, 
+0.00933019460644573, 0.0437862931517884, 0.00442743916064501, 
+0.0259286603890359, 0.000375502742826939, 0.044115668348968, 
+0.0107004809542559, 0.0348091494524851, 0.0287930226069875, 0.0160098047810607, 
+0.0498587215435691, 0.0270417573279701, 0.0128375472151674, 0.0312346979160793, 
+0.030664656299632, 0.0222687882953323, 0.0184752616798505, 0.0156859429203905, 
+0.00730722475564107, 0.0127133302506991, 0.0214902341947891, 
+0.0461594688124023, 0.0381562421564013, 0.00716787463752553, 
+0.0457901517860591, 0.0139595358865336, 0.0325180434039794, 0.0199007091345266, 
+0.00134449821198359, 0.0467773405835032, 0.0407984276069328, 
+0.0388909794623032, 0.0104968177620322, 0.0451441140146926, 0.000658522057347, 
+0.0161690928624012, 0.000263758283108473, 0.00934653067961335, 
+0.0153738715453073, 0.0454277062206529, 0.03768804022111, 0.0488853958435357, 
+0.0306186548201367, 0.00088116736151278, 0.0207748799701221, 
+0.0054849271196872, 0.0129927619476803, 0.00679626687197015, 
+0.0209194550057873, 0.00992383566917852, 0.0406298694084399, 
+0.0435337159316987, 0.0181038612150587, 0.0334876036387868, 0.0283870192826726, 
+0.00644122087396681, 0.0141377399442717, 0.0187047396670096, 
+0.0295047908555716, 0.0180219726869836, 0.019383436627686, 0.00953199919313192, 
+0.0469383541028947, 0.00329575131181628, 0.0430002993438393, 
+0.0102727616322227, 0.0374090362689458, 0.00951141429832205, 
+0.0218678666977212, 0.040400779072661, 0.026648454729002, 0.0465423404355533, 
+0.0338084432063624, 0.0245992995449342, 0.00907772053033114, 
+0.0246840696781874, 0.0372187620843761, 0.0192110556759872, 0.0472978672478348, 
+0.0363286517909728, 0.00919868308119476, 0.0127787054982036, 
+0.0318805902148597, 0.0414940065005794, 0.0171419179881923, 0.0480628249817528, 
+0.0107918045017868, 0.0476278111920692, 0.0471822133986279, 0.00535884634591639, 
+0.00662427266361192, 0.0213633304578252, 0.0432015463477001, 
+0.0358300561783835, 0.00575163864996284, 0.0232007283251733, 
+0.00459088748320937, 0.0306101255817339, 0.0117285119951703, 
+0.00285977047169581, 0.0204314406728372, 0.0470483106095344, 
+0.0267221117275767, 0.000221723271533847, 0.00324548992794007, 
+0.0324043501284905, 0.0187264877022244, 0.0144758507958613, 0.0354253637255169, 
+0.00313681007828563, 0.00867427835473791, 0.00105663759168237, 
+0.0101592514198273, 0.0136864879867062, 0.00505869922926649, 
+0.0278815632569604, 0.0434285752940923, 0.0262446497217752, 0.0482543976511806, 
+0.0321718162158504, 0.0248872927273624, 0.0211282997275703, 0.0250525951618329, 
+0.049292249744758, 0.0289645912591368, 0.0388347331434488, 0.00886241937987506, 
+0.0239166029146872, 0.0427210143185221, 0.0338977974257432, 0.00933601129800081, 
+0.027800206025131, 0.0160108744748868, 0.0384261836181395, 0.0422829467919655, 
+0.027208015974611, 0.0231970636756159, 0.00653759140986949, 0.0341588510549627, 
+0.0329925606842153, 0.0136631159228273, 0.0494475494837388, 0.0436314507503994, 
+0.0341372187132947, 0.0430898905615322, 0.0122905558091588, 0.0388792082667351, 
+0.0397267847205512, 0.030862283683382, 0.00963145637651906, 0.0448381626512855, 
+0.0465700293309055, 0.026123992074281, 0.039794942678418, 0.0323669512756169, 
+0.0248235378647223, 0.0298922356683761, 0.0194940955610946, 0.0423122482257895, 
+0.00705590611323714, 0.0456907770596445, 0.0326749510713853, 
+0.00209690167102963, 0.0175389529322274, 0.00198008933803067, 
+0.0310135266277939, 0.0201534740044735, 0.0231940337456763, 0.0212031129514799, 
+0.0346470220363699)
+
+carriage_prevalences <- 
+  tibble(
+    "type" = factor(rep(paste0("Type_",1:n_types),n_studies), levels = paste0("Type_",1:n_types)),
+    "study" = factor(rep(paste0("Location_",LETTERS[1:n_studies]), each = n_types)),
+    "rho_ij" = random_frequencies
+  )
+
+carriage_prevalences %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+```
+
+The progression rates for the types ($\nu_j$) are also set to either be constant (null model) or vary by type:
+
+``` {r Set progression rates}
+
+# Fixed for reproducibility - generated with the command `10**(-1*runif(n_types, min = 1, max = 5))`
+single_progression_rate <- 0.00483625
+random_progression_rates <- c(0.000240185440469815, 3.01900524889008e-05, 0.000193019349457664, 
+3.20190976021879e-05, 0.000435777462940683, 0.000100432093641543, 
+0.000423322665379131, 0.00905683284254156, 0.0889808392760767, 
+7.68515194204863e-05, 0.0718989380626339, 0.00287963024266148, 
+0.0188300894038511, 0.000123054970740954, 1.15812480913392e-05, 
+0.00209276293376852, 0.0208726765330568, 0.0032230137297919, 
+0.000627649904311547, 0.00826673871242632)
+
+progression_rates <-
+  tibble(
+    "type" = factor(paste0("Type_",1:n_types), levels = paste0("Type_",1:n_types)),
+    "true_nu" = rep(single_progression_rate,n_types),
+    "true_nu_j" = random_progression_rates
+  )
+
+progression_rates %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+```
+
+The properties of each study were also randomly generated. To simulate different levels of disease surveillance between locations, the $\gamma_i$ parameters were set such that the first location was used as the standard ($\gamma_{Location\_A} = 1$), relative to which others varied:
+
+``` {r Parameterise variation between studies}
+
+# Number of carriage samples fixed for reproducibility - generated with the command `round(rnorm(n_studies,1000,250))`
+sample_size_values <- c(1406, 1147, 1098, 1063, 783, 1112, 698, 1191, 1073, 1212, 684, 1059, 846, 821, 915, 796, 1005, 778, 802, 1782)
+
+# Surveillance population sizes fixed for reproducibility - generated with the command `round(10**(runif(n_studies, min = 4, max = 6)))`
+pop_size_values <- c(47972, 564325, 46811, 114386, 230965, 71132, 11273, 192064, 126716, 141412, 461182, 94070, 134907, 547460, 28172, 23181, 281315, 192303, 167383, 42215)
+
+# Study adjustment values fixed for reproducibility - generated with the command `10**rnorm(n_studies-1,mean=0,sd=2)`
+study_adjustment_values <- c(1, 60.5430951816396, 1.89565539632517, 0.0649292084176483, 249.677183848253, 
+0.0440473685650674, 0.647978902356896, 0.00142432741734962, 14.5928972263104, 
+2.45091903431387, 8197.38587930572, 0.00073968699952953, 2.64561416481823e-05, 
+0.622798870358736, 1.51813449479946, 3.37919524413034, 9.38808873516125, 
+1.80743715483567, 9.95475624011773, 493.428007140446)
+
+study_adjustment <-
+  tibble(
+    "study" = factor(paste0("Location_",LETTERS[1:n_studies])),
+    "true_gamma_i" = study_adjustment_values,
+    "carriage_samples" = sample_size_values,
+    "surveillance_population" = pop_size_values,
+    "time_interval" = 1
+  )
+
+study_adjustment %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+````
+
+Finally, when values were simulated under the negative binomial distribution, $\phi$ was set to 1. Hence these starting parameters were combined into a single table:
+
+``` {r Combine values underlying simulations}
+
+simulation_data.df <-
+  carriage_prevalences %>%
+    dplyr::left_join(progression_rates, by = c("type")) %>%
+    dplyr::left_join(study_adjustment, by = c("study")) %>%
+    dplyr::mutate(true_phi = 0.1)
+
+```
+
+## Simulating observations under the null Poisson model
+
+Starting with the null model, in which all types have the same progression rate, observed data were simulated according to the model:
+
+$$c_{ij} \sim Bin(\rho_{ij},\eta)$$
+$$d_{i,j} \sim Pois(\nu\rho_{i,j}N_{i}t_{i})$$
+
+```{r Simulate observations under the null model, echo=FALSE}
+
+null_poisson_simulation.df <-
+  simulation_data.df %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(carriage = rbinom(1, carriage_samples, prob = rho_ij)) %>%
+    dplyr::mutate(disease = rpois(1, surveillance_population*rho_ij*time_interval*true_nu)) %>%
+    dplyr::ungroup()
+
+null_poisson_simulation.data <- 
+  progressionEstimation::process_input_data(null_poisson_simulation.df)
+
+```
+
+We can also simulate from the negative binomial version of the null model:
+
+$$d_{i,j} \sim NegBin(\nu\rho_{i,j}N_{i}t_{i},\phi)$$
+```{r Simulate observations under the null neg bin model, echo=FALSE}
+
+null_negbin_simulation.df <-
+  simulation_data.df %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(carriage = rbinom(1, carriage_samples, prob = rho_ij)) %>%
+    dplyr::mutate(disease = rnbinom(1,
+                                    mu = surveillance_population*rho_ij*time_interval*true_nu,
+                                    size = true_phi)) %>%
+    dplyr::ungroup()
+
+null_negbin_simulation.data <- 
+  progressionEstimation::process_input_data(null_negbin_simulation.df)
+
+```
+
+We also simulate using the type-specific model:
+
+$$d_{i,j} \sim Pois(\nu_j\rho_{i,j}N_{i}t_{i})$$
+
+```{r Simulate observations under the type-specific model, echo=FALSE}
+
+type_specific_poisson_simulation.df <-
+  simulation_data.df %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(carriage = rbinom(1, carriage_samples, prob = rho_ij)) %>%
+    dplyr::mutate(disease = rpois(1, surveillance_population*rho_ij*time_interval*true_nu_j)) %>%
+    dplyr::ungroup()
+
+type_specific_poisson_simulation.data <- 
+  progressionEstimation::process_input_data(type_specific_poisson_simulation.df)
+
+```
+
+We also simulate using the type-specific negative binomial model:
+
+$$d_{i,j} \sim NegBin(\nu_j\rho_{i,j}N_{i}t_{i},\phi)$$
+
+```{r Simulate observations under the type-specific neg bin model, echo=FALSE}
+
+type_specific_negbin_simulation.df <-
+  simulation_data.df %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(carriage = rbinom(1, carriage_samples, prob = rho_ij)) %>%
+    dplyr::mutate(disease = rnbinom(1,
+                                    mu = surveillance_population*rho_ij*time_interval*true_nu_j,
+                                    size = true_phi)) %>%
+    dplyr::ungroup()
+
+type_specific_negbin_simulation.data <- 
+  progressionEstimation::process_input_data(type_specific_negbin_simulation.df)
+
+```
+
+We also simulate using the study-adjusted Poisson model:
+
+$$d_{i,j} \sim Poisson(\gamma_i\nu\rho_{i,j}N_{i}t_{i})$$
+```{r Simulate observations under the study-adjusted Poisson model, echo=FALSE}
+
+study_adjusted_poisson_simulation.df <-
+  simulation_data.df %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(carriage = rbinom(1, carriage_samples, prob = rho_ij)) %>%
+    dplyr::mutate(disease = rpois(1, surveillance_population*rho_ij*time_interval*true_nu*true_gamma_i)) %>%
+    dplyr::ungroup()
+
+study_adjusted_poisson_simulation.data <- 
+  progressionEstimation::process_input_data(study_adjusted_poisson_simulation.df)
+
+```
+
+We also simulate using the study-adjusted negative binomial model:
+
+$$d_{i,j} \sim NegBin(\gamma_i\nu\rho_{i,j}N_{i}t_{i},\phi)$$
+```{r Simulate observations under the study-adjusted negbin model, echo=FALSE}
+
+study_adjusted_negbin_simulation.df <-
+  simulation_data.df %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(carriage = rbinom(1, carriage_samples, prob = rho_ij)) %>%
+    dplyr::mutate(disease = rnbinom(1,
+                                    mu = surveillance_population*rho_ij*time_interval*true_nu*true_gamma_i,
+                                    size = true_phi)) %>%
+    dplyr::ungroup()
+
+study_adjusted_negbin_simulation.data <- 
+  progressionEstimation::process_input_data(study_adjusted_negbin_simulation.df)
+
+```
+
+
+
+
+We also simulate using the study-adjusted type-specific Poisson model:
+
+$$d_{i,j} \sim Poisson(\gamma_i\nu_j\rho_{i,j}N_{i}t_{i})$$
+```{r Simulate observations under the study-adjusted type-specific Poisson model, echo=FALSE}
+
+study_adjusted_type_specific_poisson_simulation.df <-
+  simulation_data.df %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(carriage = rbinom(1, carriage_samples, prob = rho_ij)) %>%
+    dplyr::mutate(disease = rpois(1, surveillance_population*rho_ij*time_interval*true_nu_j*true_gamma_i)) %>%
+    dplyr::ungroup()
+
+study_adjusted_type_specific_poisson_simulation.data <- 
+  progressionEstimation::process_input_data(study_adjusted_type_specific_poisson_simulation.df)
+
+```
+
+
+
+We also simulate using the study-adjusted type-specific negative binomial model:
+
+$$d_{i,j} \sim NegBin(\gamma_i\nu_j\rho_{i,j}N_{i}t_{i},\phi)$$
+```{r Simulate observations under the study-adjusted type-specific negbin model, echo=FALSE}
+
+study_adjusted_type_specific_negbin_simulation.df <-
+  simulation_data.df %>%
+    dplyr::rowwise() %>%
+    dplyr::mutate(carriage = rbinom(1, carriage_samples, prob = rho_ij)) %>%
+    dplyr::mutate(disease = rnbinom(1,
+                                    mu = surveillance_population*rho_ij*time_interval*true_nu_j*true_gamma_i,
+                                    size = true_phi)) %>%
+    dplyr::ungroup()
+
+study_adjusted_type_specific_negbin_simulation.data <- 
+  progressionEstimation::process_input_data(study_adjusted_type_specific_negbin_simulation.df)
+
+```
+
+## Fitting models to the simulated data
+
+We can then fit the statistical models to the simulated data:
+
+### Null Poisson simulated data
+
+``` {r Fit models to null Poisson data}
+
+# General fitting parameters
+n_chains <- 2
+n_iter <- 1e4
+n_core <- 2
+
+# Fit models to data simulated from the null Poisson
+fits_to_null_poisson_simulations <- list()
+for (i in 1:8) {
+  fits_to_null_poisson_simulations[[model_name_labels[i]]] <-
+      progressionEstimation::fit_progression_rate_model(null_poisson_simulation.data,
+                                                    type_specific = type_specific_bools[i],
+                                                    location_adjustment = study_adjustment_bools[i],
+                                                    stat_model = stat_model_types[i],
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+}
+
+# Calculate Bayes factors for model fits to the null Poisson simulations
+null_poisson_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_null_poisson_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+
+# Compare model fits to the null Poisson simulations
+null_poisson_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+# Process results from each fit
+null_poisson_simulation_outputs <-
+  lapply(
+    fits_to_null_poisson_simulations,
+    progressionEstimation::process_progression_rate_model_output,
+    null_poisson_simulation.df
+  )
+
+# Adjust model names
+null_poisson_simulation_outputs_df <- 
+  process_model_names(dplyr::bind_rows(null_poisson_simulation_outputs)) %>%
+  dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
+
+# Plot constant invasiveness output
+null_poisson_plot <-
+  plot_constant_invasiveness(null_poisson_simulation_outputs_df)
+
+```
+
+### Null negative binomial simulated data
+
+``` {r Fit models to null negbin data}
+
+# Fit models to data simulated from the null negative binomial
+fits_to_null_negbin_simulations <- list()
+for (i in 1:8) {
+  fits_to_null_negbin_simulations[[model_name_labels[i]]] <-
+      progressionEstimation::fit_progression_rate_model(null_negbin_simulation.data,
+                                                    type_specific = type_specific_bools[i],
+                                                    location_adjustment = study_adjustment_bools[i],
+                                                    stat_model = stat_model_types[i],
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+}
+
+# Calculate Bayes factors for model fits to the null negative binomial simulations
+null_negbin_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_null_negbin_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+
+# Compare model fits to the null negative binomial simulations
+null_negbin_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+# Process results from each fit
+null_negbin_simulation_outputs <-
+  lapply(
+    fits_to_null_negbin_simulations,
+    progressionEstimation::process_progression_rate_model_output,
+    null_negbin_simulation.df
+  )
+
+# Adjust model names
+null_negbin_simulation_outputs_df <- 
+  process_model_names(dplyr::bind_rows(null_negbin_simulation_outputs)) %>%
+  dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
+
+# Plot constant invasiveness output
+null_negbin_plot <-
+  plot_constant_invasiveness(null_negbin_simulation_outputs_df)
+
+# Plot invasiveness estimates from each model
+ggplot(data = null_negbin_simulation_outputs_df,
+       aes(x = type,
+           y = nu,
+           colour = model_name,
+           ymin = nu_lower,
+           ymax = nu_upper)) +
+  geom_point(position = position_dodge(width = 0.5)) +
+  geom_errorbar(position = position_dodge(width = 0.5)) +
+  geom_hline(aes(yintercept = true_nu), linetype = "dashed") +
+  ylab(expression(nu~" (cases per carrier per"~italic(t)*")")) +
+  scale_colour_manual(values = model_palette) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+```
+
+``` {r Combine output plotting for null model fits}
+
+
+
+```
+
+### Type-specific Poisson simulated data
+
+``` {r Fit models to type-specific Poisson data}
+
+fits_to_type_specific_poisson_simulations <- list()
+for (i in 1:8) {
+  fits_to_type_specific_poisson_simulations[[model_name_labels[i]]] <-
+      progressionEstimation::fit_progression_rate_model(type_specific_poisson_simulation.data,
+                                                    type_specific = type_specific_bools[i],
+                                                    location_adjustment = study_adjustment_bools[i],
+                                                    stat_model = stat_model_types[i],
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+}
+
+type_specific_poisson_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_type_specific_poisson_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+
+type_specific_poisson_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+
+# Process results from each fit
+type_specific_poisson_simulation_outputs <-
+  lapply(
+    fits_to_type_specific_poisson_simulations,
+    progressionEstimation::process_progression_rate_model_output,
+    type_specific_poisson_simulation.df
+  )
+
+# Adjust model names
+type_specific_poisson_simulation_outputs_df <- 
+  process_model_names(dplyr::bind_rows(type_specific_poisson_simulation_outputs)) %>%
+  dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
+
+# Plot varying invasiveness
+type_specific_poisson_plot <-
+  plot_varying_invasiveness(type_specific_poisson_simulation_outputs_df)
+
+```
+
+
+### Type-specific negative binomial simulated data
+
+``` {r Fit models to type-specific negbin data}
+
+fits_to_type_specific_negbin_simulations <- list()
+for (i in 1:8) {
+  fits_to_type_specific_negbin_simulations[[model_name_labels[i]]] <-
+      progressionEstimation::fit_progression_rate_model(type_specific_negbin_simulation.data,
+                                                    type_specific = type_specific_bools[i],
+                                                    location_adjustment = study_adjustment_bools[i],
+                                                    stat_model = stat_model_types[i],
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+}
+
+type_specific_negbin_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_type_specific_negbin_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+
+type_specific_negbin_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+# Process results from each fit
+type_specific_negbin_simulation_outputs <-
+  lapply(
+    fits_to_type_specific_negbin_simulations,
+    progressionEstimation::process_progression_rate_model_output,
+    type_specific_negbin_simulation.df
+  )
+
+# Adjust model names
+type_specific_negbin_simulation_outputs_df <- 
+  process_model_names(dplyr::bind_rows(type_specific_negbin_simulation_outputs)) %>%
+  dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
+
+# Plot invasiveness estimates from each model
+type_specific_negbin_plot <-
+  plot_varying_invasiveness(type_specific_negbin_simulation_outputs_df)
+
+```
+
+### Study-adjusted Poisson simulated data
+
+``` {r Fit models to study-adjusted Poisson data}
+
+fits_to_study_adjusted_poisson_simulations <- list()
+for (i in 1:8) {
+  fits_to_study_adjusted_poisson_simulations[[model_name_labels[i]]] <-
+      progressionEstimation::fit_progression_rate_model(study_adjusted_poisson_simulation.data,
+                                                    type_specific = type_specific_bools[i],
+                                                    location_adjustment = study_adjustment_bools[i],
+                                                    stat_model = stat_model_types[i],
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+}
+
+study_adjusted_poisson_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_study_adjusted_poisson_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+
+study_adjusted_poisson_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+# Process results from each fit
+study_adjusted_poisson_simulation_outputs <-
+  lapply(
+    fits_to_study_adjusted_poisson_simulations,
+    progressionEstimation::process_progression_rate_model_output,
+    study_adjusted_poisson_simulation.df
+  )
+
+# Adjust model names
+study_adjusted_poisson_simulation_outputs_df <- 
+  process_model_names(dplyr::bind_rows(study_adjusted_poisson_simulation_outputs)) %>%
+  dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
+
+# Plot constant invasiveness
+study_adjusted_poisson_plot <-
+  plot_constant_invasiveness(study_adjusted_poisson_simulation_outputs_df)
+
+# 
+# # Plot invasiveness estimates from each model
+# ggplot(data = study_adjusted_poisson_simulation_outputs_df,
+#        aes(x = type,
+#            y = nu,
+#            colour = model_name,
+#            ymin = nu_lower,
+#            ymax = nu_upper)) +
+#   geom_point(position = position_dodge(width = 0.5)) +
+#   geom_errorbar(position = position_dodge(width = 0.5)) +
+#   geom_hline(aes(yintercept = true_nu), linetype = "dashed") +
+#   ylab(expression(nu~" (cases per carrier per"~italic(t)*")")) +
+#   scale_colour_manual(values = model_palette) +
+#   theme_bw()
+# 
+# null_pois <- process_progression_rate_model_output(fits_to_null_poisson_simulations[["study-adjusted null Poisson"]],null_poisson_simulation.df)
+# adj_null_pois <- process_progression_rate_model_output(fits_to_study_adjusted_poisson_simulations[["study-adjusted null Poisson"]],study_adjusted_poisson_simulation.df)
+# 
+# ggplot(adj_null_pois, aes(x = true_gamma_i, y = delta)) +
+#   geom_point() +
+#     scale_x_continuous(trans = "log10") +
+#   scale_y_continuous(trans = "log10") +
+#   geom_abline(slope = 1, intercept = 0, linetype = "dashed")
+# 
+# plot_case_carrier_predictions(adj_null_pois)
+
+```
+
+### Study-adjusted negative binomial simulated data
+
+``` {r Fit models to study-adjusted negbin data}
+
+fits_to_study_adjusted_negbin_simulations <- list()
+for (i in 1:8) {
+  fits_to_study_adjusted_negbin_simulations[[model_name_labels[i]]] <-
+      progressionEstimation::fit_progression_rate_model(study_adjusted_negbin_simulation.data,
+                                                    type_specific = type_specific_bools[i],
+                                                    location_adjustment = study_adjustment_bools[i],
+                                                    stat_model = stat_model_types[i],
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+}
+
+study_adjusted_negbin_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_study_adjusted_negbin_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+
+study_adjusted_negbin_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+# Process results from each fit
+study_adjusted_negbin_simulation_outputs <-
+  lapply(
+    fits_to_study_adjusted_negbin_simulations,
+    progressionEstimation::process_progression_rate_model_output,
+    study_adjusted_negbin_simulation.df
+  )
+
+# Adjust model names
+study_adjusted_negbin_simulation_outputs_df <- 
+  process_model_names(dplyr::bind_rows(study_adjusted_negbin_simulation_outputs)) %>%
+  dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
+
+# Plot invasiveness estimates from each model
+study_adjusted_negbin_plot <-
+  plot_constant_invasiveness(study_adjusted_negbin_simulation_outputs_df)
+
+# ggplot(data = study_adjusted_negbin_simulation_outputs_df %>%
+#                 dplyr::select(true_nu_j,nu,nu_lower,nu_upper,model_name) %>%
+#                 dplyr::distinct(),
+#        aes(x = true_nu_j,
+#            y = nu,
+#            colour = model_name,
+#            ymin = nu_lower,
+#            ymax = nu_upper)) +
+#   geom_point(position = position_dodge(width = 0.05)) +
+#   geom_errorbar(position = position_dodge(width = 0.05)) +
+#   geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+#   ylab(expression(nu~" (cases per carrier per"~italic(t)*")")) +
+#   scale_colour_manual(values = model_palette) +
+#   scale_x_continuous(trans = "log10") +
+#   scale_y_continuous(trans = "log10") +
+#   theme_bw()
+# 
+# ggplot(data = study_adjusted_negbin_simulation_outputs_df %>%
+#                 dplyr::select(type,true_nu,nu,nu_lower,nu_upper,model_name) %>%
+#                 dplyr::distinct(),
+#        aes(x = type,
+#            y = nu,
+#            colour = model_name,
+#            ymin = nu_lower,
+#            ymax = nu_upper)) +
+#   geom_point(position = position_dodge(width = 0.5)) +
+#   geom_errorbar(position = position_dodge(width = 0.5)) +
+#   geom_hline(aes(yintercept = true_nu), linetype = "dashed") +
+#   ylab(expression(nu~" (cases per carrier per"~italic(t)*")")) +
+#   scale_colour_manual(values = model_palette) +
+#   scale_y_continuous(trans = "log10") +
+#   theme_bw()
+# 
+# 
+# ggplot(data = study_adjusted_negbin_simulation_outputs_df %>%
+#                 dplyr::select(true_nu_j,nu,nu_lower,nu_upper,model_name,delta,true_gamma_i,delta_upper,delta_lower) %>%
+#                 dplyr::distinct(),
+#        aes(x = true_gamma_i,
+#            y = delta,
+#            colour = model_name,
+#            ymin = delta,
+#            ymax = delta_upper)) +
+#   geom_point(position = position_dodge(width = 0.05)) +
+#     scale_colour_manual(values = model_palette) +
+#   geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+#   scale_x_continuous(trans = "log10") +
+#   scale_y_continuous(trans = "log10")
+# 
+# 
+# study_adjusted_fit <- fits_to_study_adjusted_negbin_simulations[["study-adjusted null negative binomial"]]
+# rstan::summary(study_adjusted_fit, pars = "gamma_i")
+# 
+# plot_case_carrier_predictions(study_adjusted_negbin_simulation_outputs[["study-adjusted null negative binomial"]])
+# 
+# ggplot(study_adjusted_negbin_simulation_outputs[["study-adjusted null negative binomial"]],
+#        aes(x = rho_ij*true_gamma_i*true_nu*surveillance_population,
+#            y = disease,
+#            colour = study)) +
+#   geom_point()
+
+```
+
+### Study-adjusted type-specific Poisson simulated data
+
+``` {r Fit models to study-adjusted type-specific Poisson data}
+
+fits_to_study_adjusted_type_specific_poisson_simulations <- list()
+for (i in 1:8) {
+  fits_to_study_adjusted_type_specific_poisson_simulations[[model_name_labels[i]]] <-
+      progressionEstimation::fit_progression_rate_model(study_adjusted_type_specific_poisson_simulation.data,
+                                                    type_specific = type_specific_bools[i],
+                                                    location_adjustment = study_adjustment_bools[i],
+                                                    stat_model = stat_model_types[i],
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+}
+
+study_adjusted_type_specific_poisson_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_study_adjusted_type_specific_poisson_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+
+study_adjusted_type_specific_poisson_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+# Process results from each fit
+study_adjusted_type_specific_poisson_simulation_outputs <-
+  lapply(
+    fits_to_study_adjusted_type_specific_poisson_simulations,
+    progressionEstimation::process_progression_rate_model_output,
+    study_adjusted_type_specific_poisson_simulation.df
+  )
+
+# Adjust model names
+study_adjusted_type_specific_poisson_simulation_outputs_df <- 
+  process_model_names(dplyr::bind_rows(study_adjusted_type_specific_poisson_simulation_outputs)) %>%
+  dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
+
+# Plot varying invasiveness
+study_adjusted_type_specific_poisson_plot <-
+  plot_varying_invasiveness(study_adjusted_type_specific_poisson_simulation_outputs_df)
+
+```
+
+### Study-adjusted type-specific negative binomial simulated data
+
+``` {r Fit models to study-adjusted type-specific negbin data}
+
+fits_to_study_adjusted_type_specific_negbin_simulations <- list()
+for (i in 1:8) {
+  fits_to_study_adjusted_type_specific_negbin_simulations[[model_name_labels[i]]] <-
+      progressionEstimation::fit_progression_rate_model(study_adjusted_type_specific_negbin_simulation.data,
+                                                    type_specific = type_specific_bools[i],
+                                                    location_adjustment = study_adjustment_bools[i],
+                                                    stat_model = stat_model_types[i],
+                                                    num_chains = n_chains,
+                                                    num_iter = n_iter,
+                                                    num_cores = n_core)
+}
+
+study_adjusted_type_specific_negbin_bf_comparison <- 
+  progressionEstimation::compare_model_fits_with_bf(fits_to_study_adjusted_type_specific_negbin_simulations,
+                                                    num_iter = n_iter,
+                                                    num_threads = n_core)
+
+study_adjusted_type_specific_negbin_bf_comparison %>%
+  kableExtra::kable()  %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
+
+# Process results from each fit
+study_adjusted_type_specific_negbin_simulation_outputs <-
+  lapply(
+    fits_to_study_adjusted_type_specific_negbin_simulations,
+    progressionEstimation::process_progression_rate_model_output,
+    study_adjusted_type_specific_negbin_simulation.df
+  )
+
+# Adjust model names
+study_adjusted_type_specific_negbin_simulation_outputs_df <- 
+  process_model_names(dplyr::bind_rows(study_adjusted_type_specific_negbin_simulation_outputs)) %>%
+  dplyr::mutate(type = factor(type, levels = paste0("Type_",1:n_types)))
+
+# Plot varying invasiveness
+study_adjusted_type_specific_negbin_plot <-
+  plot_varying_invasiveness(study_adjusted_type_specific_negbin_simulation_outputs_df)
+
+```
+## Combine plots
+
+``` {r Combine all plots}
+
+# Save data
+save(null_poisson_bf_comparison,null_poisson_simulation_outputs_df,null_negbin_bf_comparison,null_negbin_simulation_outputs_df,type_specific_poisson_bf_comparison,type_specific_poisson_simulation_outputs_df,type_specific_negbin_bf_comparison,type_specific_negbin_simulation_outputs_df,study_adjusted_poisson_bf_comparison,study_adjusted_poisson_simulation_outputs_df,study_adjusted_negbin_bf_comparison,study_adjusted_negbin_simulation_outputs_df,study_adjusted_type_specific_poisson_bf_comparison,study_adjusted_type_specific_poisson_simulation_outputs_df,study_adjusted_type_specific_poisson_simulation_outputs_df,study_adjusted_type_specific_poisson_bf_comparison,study_adjusted_type_specific_negbin_bf_comparison,study_adjusted_type_specific_negbin_simulation_outputs_df,file = "/Users/ncrouche/Documents/progression_rate_estimation/FOR_RESUB/simulation_output_data.Robj")
+
+# Get all plots
+inv_plot_list <- list(
+  null_poisson_plot,
+  null_negbin_plot,
+  type_specific_poisson_plot,
+  type_specific_negbin_plot,
+  study_adjusted_poisson_plot,
+  study_adjusted_negbin_plot,
+  study_adjusted_type_specific_poisson_plot,
+  study_adjusted_type_specific_negbin_plot
+)
+
+no_legend_plots <- list()
+for (i in 1:length(inv_plot_list)) {
+  no_legend_plots[[i]] <- inv_plot_list[[i]] + theme(legend.position = "none")
+}
+
+legend_for_plots <- cowplot::get_legend(null_poisson_plot)
+
+no_leg_plot <- cowplot::plot_grid(plotlist = no_legend_plots,
+                                  ncol = 2,
+                                  nrow = 5,
+                                  labels = "AUTO",
+                                  vjust = -0.01) +
+      theme(plot.margin = unit(c(1.0,0,0,0), "cm"))
+
+(inv_plot_with_legends <- 
+  cowplot::plot_grid(no_leg_plot,
+                     legend_for_plots,
+                     ncol = 1,
+                     rel_heights = c(1,0.05)) +
+      theme(plot.margin = unit(c(0.0,0,2.5,0), "cm")))
+
+ggsave(file="simulations_invasiveness_plots.png", height = 11, width = 8)
+
+ggsave(file="simulations_invasiveness_plots.pdf", height = 11, width = 8)
+
+```
+
+## Plot phi
+
+``` {r Plot phi}
+
+negbin_fits <-
+  dplyr::bind_rows(
+    null_negbin_simulation_outputs_df %>%
+      dplyr::filter(model_name == "null negative binomial") %>%
+      dplyr::select(model_name,true_phi,phi,phi_upper,phi_lower) %>%
+      dplyr::distinct(),
+    type_specific_negbin_simulation_outputs_df %>%
+      dplyr::filter(model_name == "type-specific negative binomial") %>%
+      dplyr::select(model_name,true_phi,phi,phi_upper,phi_lower) %>%
+      dplyr::distinct(),
+    study_adjusted_negbin_simulation_outputs_df %>%
+      dplyr::filter(model_name == "study-adjusted null negative binomial") %>%
+      dplyr::select(model_name,true_phi,phi,phi_upper,phi_lower) %>%
+      dplyr::distinct(),
+    study_adjusted_type_specific_negbin_simulation_outputs_df %>%
+      dplyr::filter(model_name == "study-adjusted type-specific negative binomial") %>%
+      dplyr::select(model_name,true_phi,phi,phi_upper,phi_lower) %>%
+      dplyr::distinct()
+  )
+
+(sim_phi_plot <-
+  ggplot(negbin_fits,
+        aes(x = model_name,
+            y = phi,
+            ymin = phi_lower,
+            ymax = phi_upper)) +
+    geom_point() +
+    geom_errorbar(width = 0.25) +
+    theme_bw() +
+    scale_y_continuous(trans="log10") +
+    scale_x_discrete(label = c("null negative binomial",
+                                 "type-specific negative binomial",
+                                 "study-adjusted negative binomial",
+                                 "study-adjusted type-specific negative binomial")
+                       ) +
+    geom_hline(yintercept = 0.1, linetype = "dashed") +
+    ylab(expression(phi)) +
+    xlab("Model name") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+)
+
+ggsave(sim_phi_plot,
+       file="simulation_phi_plot.png",
+       height = 6,
+       width = 6)
+
+ggsave(sim_phi_plot,
+       file="simulation_phi_plot.pdf",
+       height = 6,
+       width = 6)
+
+```

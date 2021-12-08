@@ -53,6 +53,16 @@ transformed parameters {
 // The model to be estimated
 model {
 
+  // Calculate prior probability for types
+  for (j in 1:j_max) {
+    target += uniform_lpdf(log_nu_j[j] | -1.25, 1.25);
+  }
+
+  // Calculate prior probability for strains
+  for (k in 1:k_max) {
+    target += uniform_lpdf(log_nu_k[k] | -6, 1);
+  }
+
   // iterate over datasets
   for (index in 1:n_obs) {
 
@@ -65,10 +75,8 @@ model {
     // Get location adjustment
     int i = i_values[index];
 
-    // calculate prior probability
-    target += uniform_lpdf(log_nu_k[k] | -6, 1);
+    // Calculate prior probability for carriage frequency
     target += beta_lpdf(rho_ij[index] | 1, 1);
-    target += uniform_lpdf(log_nu_j[j] | -1.25, 1.25);
 
     // calculate likelihood given data
     target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);

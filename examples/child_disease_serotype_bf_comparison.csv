@@ -1,0 +1,9 @@
+Model,log_Bayes_factor
+adjusted_type_specific_negbin,0
+adjusted_type_specific_poisson,-30.9151655720038
+type_specific_negbin,-96.1786419211139
+adjusted_null_negbin,-119.467605126777
+null_negbin,-142.095295791415
+adjusted_null_poisson,-793.660418305824
+type_specific_poisson,-840.981519500314
+null_poisson,-1838.49369676146

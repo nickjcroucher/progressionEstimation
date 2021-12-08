@@ -38,14 +38,16 @@ transformed parameters {
 // The model to be estimated
 model {
 
+  // Calculate prior probability across all types
+  target += uniform_lpdf(log_nu | -6, 1);
+
   // iterate over datasets
   for (index in 1:n_obs) {
 
     // Get serotype
     int j = j_values[index];
 
-    // calculate prior probability
-    target += uniform_lpdf( log_nu | -6, 1);
+    // Calculate prior probability for carriage frequency
     target += beta_lpdf(rho_ij[index] | 1, 1);
 
     // calculate likelihood given data

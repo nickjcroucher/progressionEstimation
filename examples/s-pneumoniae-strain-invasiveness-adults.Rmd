@@ -25,8 +25,120 @@ require(gtools)
 require(roxygen2)
 # Load stan package
 library(progressionEstimation)
-pkgbuild::compile_dll()
-roxygen2::roxygenize(package.dir = "..")
+#pkgbuild::compile_dll()
+#roxygen2::roxygenize(package.dir = "..")
+
+#############
+# Functions #
+#############
+
+plot_progression_rate_by_type <- function(model_output_df,
+                                          type = "type",
+                                          unit_time = "unit time",
+                                          type_name = "type",
+                                          colour_col = NULL,
+                                          colour_palette = NULL,
+                                          use_sample_size = FALSE) {
+  if (!(any(grepl("nu",colnames(model_output_df))))) {
+    stop("Need to include model output in data frame for plotting")
+  }
+  progression_rate_values <- c("nu", "nu_lower", "nu_upper")
+  if (type == "strain") {
+    progression_rate_values <- paste0("secondary_", progression_rate_values)
+  }
+  y_label_text = paste0("Progression rate contribution (disease per carrier per ",unit_time,")")
+
+  model_output_df %<>%
+      dplyr::group_by(!!! dplyr::syms(type)) %>%
+      dplyr::mutate(num_observations = sum(carriage+disease)) %>%
+      dplyr::ungroup()
+
+  if (type == "type") {
+    model_output_df %<>%
+      dplyr::group_by(!!! dplyr::syms(type),strain) %>%
+      dplyr::slice_head(n=1) %>%
+      dplyr::ungroup()
+  } else if (type == "strain") {
+    model_output_df %<>%
+      dplyr::group_by(!!! dplyr::syms(type),type) %>%
+      dplyr::slice_head(n=1) %>%
+      dplyr::ungroup()
+  }
+
+  if (is.null(colour_col)) {
+    if (use_sample_size) {
+      base_graph <-
+        ggplot(model_output_df,
+               aes(x = get(!!type),
+                   y = get(progression_rate_values[1]),
+                   ymin = get(progression_rate_values[2]),
+                   ymax = get(progression_rate_values[3]),
+                   shape = num_observations))
+    } else {
+      base_graph <-
+        ggplot(model_output_df,
+               aes(x = get(!!type),
+                   y = get(progression_rate_values[1]),
+                   ymin = get(progression_rate_values[2]),
+                   ymax = get(progression_rate_values[3])))
+    }
+  } else {
+    if (use_sample_size) {
+      base_graph <-
+        ggplot(model_output_df,
+               aes(x = get(!!type),
+                   y = get(progression_rate_values[1]),
+                   ymin = get(progression_rate_values[2]),
+                   ymax = get(progression_rate_values[3]),
+                   colour = get(colour_col),
+                   fill = get(colour_col),
+                   shape = num_observations))
+    } else {
+      base_graph <-
+        ggplot(model_output_df,
+               aes(x = get(!!type),
+                   y = get(progression_rate_values[1]),
+                   ymin = get(progression_rate_values[2]),
+                   ymax = get(progression_rate_values[3]),
+                   colour = get(colour_col),
+                   fill = get(colour_col)))
+    }
+  }
+
+  point_graph <-
+    base_graph +
+    geom_point() +
+    geom_errorbar() +
+    ylab(y_label_text) +
+    xlab(type_name) +
+    scale_y_continuous(trans ="log10") +
+    theme_bw()
+
+  if (!is.null(colour_col) & !is.null(colour_palette)) {
+    point_graph <- point_graph +
+      scale_colour_manual(values = colour_palette,
+                          name = colour_col) +
+      scale_fill_manual(values = colour_palette,
+                        name = colour_col) +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
+            legend.position = "bottom")
+  } else if (!is.null(colour_col)) {
+    point_graph <- point_graph +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
+            legend.position = "bottom")
+  } else {
+    point_graph <- point_graph +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+  }
+
+  if (use_sample_size) {
+    point_graph <- point_graph +
+      scale_shape_binned(name = "Number of\nisolates",
+                         breaks = c(5,10,25,50,100))
+  }
+
+  return(point_graph)
+}
 
 # Define serotype categories and palettes
 vaccine_types <- list(
@@ -57,12 +169,15 @@ epi_colors <- c(
 
 The dataset used in this analysis is contained in the `S_pneumoniae_mixed_strain` object, which includes data from `r S_pneumoniae_mixed_strain %>% dplyr::select(study) %>% dplyr::n_distinct()` studies on `r S_pneumoniae_mixed_strain %>% dplyr::select(type) %>% dplyr::n_distinct()` serotypes. The distribution of samples between each study can be plotted, if they are ranked by the mean number of carriage and disease isolates: The total number of observations for each serotype can be plotted:
 
-``` {r Plot distribution by serotype, include = FALSE}
+``` {r Plot distribution by serotype}
 
 
 n_chains <- 2
 n_iter <- 2.5e4
 n_core <- 2
+adapt_delta = 0.99
+stepsize = 0.01
+max_treedepth = 20
 
 serotype_by_count <-
   S_pneumoniae_mixed_strain %>%
@@ -108,22 +223,26 @@ The study-adjusted type-specific model can be applied to the overall dataset:
 
 full_mixed_serotype_and_strain_invasiveness <- 
   progressionEstimation::process_input_data(S_pneumoniae_mixed_strain,
-                                            combine_strain = TRUE,
+                                            use_strain = TRUE,
                                             condense = FALSE)
 
-full_strain_and_serotype_specific_poisson_fit <- 
+full_adjusted_serotype_specific_strain_modified_poisson_fit <- 
   progressionEstimation::fit_progression_rate_model(full_mixed_serotype_and_strain_invasiveness,
                                                     type_specific = TRUE,
                                                     location_adjustment = FALSE,
+                                                    strain_as_secondary_type = TRUE,
                                                     stat_model = "poisson",
-                                                    model_description = "strain_and_serotype_specific_poisson",
+                                                    model_description = "serotype_specific_strain_modified_poisson",
                                                     num_chains = n_chains,
                                                     num_iter = n_iter,
-                                                    num_cores = n_core)
+                                                    num_cores = n_core,
+                                                    adapt_delta_value = adapt_delta,
+                                                    stepsize_value = stepsize,
+                                                    max_treedepth_value = max_treedepth)
 
-rhat_plot <- plot(full_strain_and_serotype_specific_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
+rhat_plot <- plot(full_adjusted_serotype_specific_strain_modified_poisson_fit, plotfun = "rhat", binwidth = 0.00005)
 
-trace_plot <- rstan::traceplot(full_strain_and_serotype_specific_poisson_fit, pars = "lp__") + theme(axis.text.x = element_text(angle = 90))
+trace_plot <- rstan::traceplot(full_adjusted_serotype_specific_strain_modified_poisson_fit, pars = "lp__") + theme(axis.text.x = element_text(angle = 90))
 
 (full_strain_and_serotype_validation_plot <-
   cowplot::plot_grid(plotlist = list(rhat_plot,trace_plot),
@@ -144,9 +263,10 @@ ggsave(full_strain_and_serotype_validation_plot,
 
 # Annotate serotypes by status
 best_fitting_output <- 
-  progressionEstimation::process_progression_rate_model_output(full_strain_and_serotype_specific_poisson_fit,
+  progressionEstimation::process_progression_rate_model_output(full_adjusted_serotype_specific_strain_modified_poisson_fit,
                                                                S_pneumoniae_mixed_strain,
-                                                               combined_strain_type = TRUE) %>%
+                                                               strain_as_secondary_type = TRUE,
+                                                               condense = FALSE) %>%
     dplyr::mutate("type" = S_pneumoniae_mixed_strain$type) %>%
     dplyr::mutate("classification" = dplyr::case_when(
         type %in% vaccine_types[["PCV7"]] ~ "PCV7",
@@ -164,31 +284,70 @@ best_fitting_output <-
                                                                      "PCV15",
                                                                      "PCV20",
                                                                      "PPV23",
-                                                                     "No PCV")))
+                                                                     "No PCV"))) %>%
+    tidyr::unite(combined,type,strain,remove = FALSE) %>%
+    dplyr::group_by(combined) %>%
+    dplyr::mutate(num_observations = sum(carriage+disease)) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(num_observations >= 10) %>%
+    dplyr::group_by(strain) %>%
+    dplyr::mutate(num_serotypes = dplyr::n_distinct(type)) %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(type) %>%
+    dplyr::mutate(num_strains = dplyr::n_distinct(strain)) %>%
+    dplyr::ungroup()
+
+# Function needed if processing combined serotype/strain assignments
+mixedrank = function(x) order(gtools::mixedorder(as.character(x)))
 
 # Order serotypes
-strains_by_invasiveness <-
+serotype_levels <-
   best_fitting_output %>%
-    dplyr::select(combined,nu) %>%
+    dplyr::select(type,classification) %>%
+    dplyr::distinct() %>%
+    dplyr::group_by(classification) %>%
+    dplyr::arrange(mixedrank(type),
+                   .by_group = TRUE) %>%
+    dplyr::ungroup() %>%
+    dplyr::select(type) %>%
+    dplyr::mutate(type = as.character(type)) %>%
+    dplyr::pull()
+
+strain_levels <- gtools::mixedsort(best_fitting_output$strain)
+
+serotypes_by_invasiveness <-
+  best_fitting_output %>%
+    dplyr::select(type,nu) %>%
     dplyr::distinct() %>%
     dplyr::arrange(desc(nu)) %>%
-    dplyr::select(combined) %>%
+    dplyr::select(type) %>%
+    dplyr::mutate(type = as.character(type)) %>%
+    dplyr::pull()
+
+strains_by_invasiveness <-
+  best_fitting_output %>%
+    dplyr::select(strain,secondary_nu) %>%
+    dplyr::distinct() %>%
+    dplyr::arrange(desc(secondary_nu)) %>%
+    dplyr::select(strain) %>%
+    dplyr::mutate(strain = as.character(strain)) %>%
     dplyr::pull()
 
 best_fitting_output %<>%
-  dplyr::mutate(combined = factor(combined, levels = strains_by_invasiveness))
+  dplyr::mutate(combined = factor(strain, levels = strains_by_invasiveness))
 
 # Plot
 (full_invasiveness_plot <-
-  progressionEstimation::plot_progression_rates(best_fitting_output,
-                                                type = "combined",
+  plot_progression_rate_by_type(best_fitting_output %>%
+                                                  dplyr::filter(num_strains > 1),
+                                                type = "strain",
                                                 unit_time = "year",
-                                                type_name = "Serotype",
+                                                type_name = "Strain",
                                                 colour_col = "classification",
                                                 colour_palette = vaccine_colours,
                                                 use_sample_size = TRUE) +
-    theme(axis.text.x = element_text(size = 6))
-)
+                                                facet_wrap(.~strain,
+                                                           scales = 'free_x'))
 
 ggsave(full_invasiveness_plot,
        file = "full_mixed_strain_and_serotype_invasiveness_plot.png",
@@ -203,90 +362,50 @@ ggsave(full_invasiveness_plot,
 ``` {r Plot only larger sample size}
 
 # Annotate sample size
-best_fitting_output %<>%
-  dplyr::group_by(combined) %>%
-  dplyr::mutate(num_observations = sum(carriage+disease)) %>%
-  dplyr::ungroup() %>%
-  dplyr::filter(num_observations >= 10) %>%
-  dplyr::group_by(strain) %>%
-  dplyr::mutate(num_serotypes = dplyr::n_distinct(type)) %>%
-  dplyr::ungroup() %>%
-  dplyr::group_by(type) %>%
-  dplyr::mutate(num_strains = dplyr::n_distinct(strain)) %>%
-  dplyr::ungroup()
+filtered_best_fitting_output <-
+  best_fitting_output %>%
+    dplyr::group_by(combined) %>%
+    dplyr::mutate(num_observations = sum(carriage+disease)) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(num_observations >= 10) %>%
+    dplyr::group_by(strain) %>%
+    dplyr::mutate(num_serotypes = dplyr::n_distinct(type)) %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(type) %>%
+    dplyr::mutate(num_strains = dplyr::n_distinct(strain)) %>%
+    dplyr::ungroup()
 
 # Plot
-(invasiveness_plot <-
-  progressionEstimation::plot_progression_rates(best_fitting_output,
-                                                type = "combined",
-                                                unit_time = "year",
-                                                type_name = "Serotype",
-                                                colour_col = "classification",
-                                                colour_palette = vaccine_colours,
-                                                use_sample_size = TRUE))
-
-```
-
-``` {r Plot variation within serotypes, fig.height = 12}
-
-mixedrank = function(x) order(gtools::mixedorder(as.character(x)))
-
-# Reorder by serotype
-strain_and_serotype_levels <-
-  best_fitting_output %>%
-    dplyr::select(combined,classification) %>%
-    dplyr::distinct() %>%
-    dplyr::arrange(classification,combined) %>%
-    dplyr::select(combined) %>%
-    dplyr::pull()
-
-serotype_levels <-
-  best_fitting_output %>%
-    dplyr::select(type,classification) %>%
-    dplyr::distinct() %>%
-    dplyr::group_by(classification) %>%
-    dplyr::arrange(mixedrank(type),
-                   .by_group = TRUE) %>%
-    dplyr::ungroup() %>%
-    dplyr::select(type) %>%
-    dplyr::pull()
-
-best_fitting_output %<>%
-  dplyr::mutate(combined = factor(combined, levels = strain_and_serotype_levels)) %>%
-  dplyr::mutate(type = factor(type, levels = serotype_levels))
-
-(serotype_invasiveness_plot <-
-  progressionEstimation::plot_progression_rates(best_fitting_output %>%
+(filtered_invasiveness_plot <-
+  plot_progression_rate_by_type(filtered_best_fitting_output %>%
+                                  dplyr::mutate(strain = factor(strain, levels = strains_by_invasiveness)) %>%
+                                  dplyr::mutate(type = factor(type, levels = serotype_levels)) %>%
                                                   dplyr::filter(num_strains > 1),
-                                                type = "combined",
+                                                type = "strain",
                                                 unit_time = "year",
-                                                type_name = "Serotype",
+                                                type_name = "Strain",
                                                 colour_col = "classification",
                                                 colour_palette = vaccine_colours,
                                                 use_sample_size = TRUE) +
                                                 facet_wrap(.~type,
-                                                           ncol = 2,
                                                            scales = 'free_x'))
 
+ggsave(filtered_invasiveness_plot,
+       file = "filtered_mixed_strain_and_serotype_invasiveness_plot.png",
+       width = 20,
+       height = 10
+)
+
 ```
+``` {r Joint plot for mixed strain invasiveness}
 
-
-``` {r Plot variation within strains, fig.height = 12}
-
-strain_levels <-
-  best_fitting_output %>%
-    dplyr::select(strain) %>%
-    dplyr::distinct() %>%
-    dplyr::arrange(mixedrank(strain)) %>%
-    dplyr::pull()
-
-best_fitting_output %<>%
-  dplyr::mutate(strain = factor(strain, levels = strain_levels))
-
-(strain_invasiveness_plot <-
-  progressionEstimation::plot_progression_rates(best_fitting_output %>%
-                                                  dplyr::filter(num_serotypes > 1),
-                                                type = "combined",
+# Plot
+(filtered_sero_invasiveness_plot <-
+  plot_progression_rate_by_type(filtered_best_fitting_output %>%
+                                    dplyr::filter(num_serotypes > 1) %>%
+                                    dplyr::mutate(strain = factor(strain, levels = strains_by_invasiveness)) %>%
+                                    dplyr::mutate(type = factor(type, levels = serotypes_by_invasiveness)),
+                                                type = "type",
                                                 unit_time = "year",
                                                 type_name = "Serotype",
                                                 colour_col = "classification",
@@ -295,16 +414,18 @@ best_fitting_output %<>%
                                                 facet_wrap(.~strain,
                                                            scales = 'free_x'))
 
-combined_heterogeneity_plot <-
-  cowplot::plot_grid(plotlist = list(strain_invasiveness_plot, serotype_invasiveness_plot),
-                     ncol = 1, nrow = 2,
-                     rel_heights = c(0.5, 1),
-                     labels = "AUTO")
+(combined_mixed_strain_invasiveness_plot <-
+  cowplot::plot_grid(plotlist = list(filtered_sero_invasiveness_plot +
+                                       ylab("Progression rate contribution\n(disease per carrier per year)") +
+                                       theme(legend.position = "none"),
+                                     filtered_invasiveness_plot +
+                                       ylab("Progression rate contribution\n(disease per carrier per year)")),
+                     labels = "AUTO",
+                     nrow = 2,
+                     rel_heights = c(0.3,0.7)))
 
-ggsave(combined_heterogeneity_plot,
-       file = "mixed_within_strain_invasiveness_variation_plot.png",
-       width = 12,
-       height = 17.5
-)
-
+ggsave(combined_mixed_strain_invasiveness_plot,
+       file = "combined_mixed_strain_invasiveness_plot.png",
+       height = 12,
+       width = 9)
 ```

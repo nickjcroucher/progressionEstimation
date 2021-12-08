@@ -27,7 +27,7 @@ parameters {
   vector<lower=-pi()/2, upper=pi()/2>[i_max-1] gamma_varying;
 
   // negative binomial overdispersions
-  real<lower=-3,upper=3> log_phi_nb;
+  real<lower=0> phi_nb;
 
 }
 
@@ -35,7 +35,6 @@ transformed parameters {
 
   // declare transformed parameters
   vector[i_max] gamma_i;
-  real phi_nb;
   real mu = 0; // position parameter of Cauchy for gamma
   real tau = 2; // scale parameter of Cauchy for gamma
 
@@ -51,13 +50,23 @@ transformed parameters {
     gamma_i[i] = pow(10, mu + tau * tan(gamma_varying[i-1]));
   }
 
-  // calculate negative binomial overdispersion
-  phi_nb = pow(10, log_phi_nb);
-
 }
 
 // The model to be estimated
 model {
+
+  // Calculate prior probability for types
+  for (j in 1:j_max) {
+    target += uniform_lpdf(log_nu_j[j] | -6, 1);
+  }
+
+  // Calculate prior probability for study adjustment
+  for (i in 2:i_max) {
+    target += uniform_lpdf(gamma_varying[i-1] | -pi()/2, pi()/2);
+  }
+
+  // Calculate prior probability for precision parameter
+  target += exponential_lpdf(phi_nb | 1);
 
   // iterate over datasets
   for (index in 1:n_obs) {
@@ -67,14 +76,9 @@ model {
 
     // Get location adjustment
     int i = i_values[index];
-    if (i > 1) {
-      target += uniform_lpdf(gamma_varying[i-1] | -pi()/2, pi()/2);
-    }
 
-    // calculate prior probability
-    target += uniform_lpdf( log_nu_j[j] | -6, 1);
+    // Calculate prior probability for carriage frequency
     target += beta_lpdf(rho_ij[index] | 1, 1);
-    target += uniform_lpdf(log_phi_nb | -3, 3);
 
     // calculate likelihood given data
     target += binomial_lpmf(c_ij[index] | n_i[index], rho_ij[index]);

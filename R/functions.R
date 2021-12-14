@@ -324,16 +324,16 @@ process_progression_rate_model_output<-function(model_output,
   if ("gamma_i" %in% model_output@model_pars) {
     location_parameters <- data.frame(
       "study" = i_levels,
-      "delta" = get_median("gamma_i",model_output),
-      "delta_lower" = get_lower("gamma_i",model_output),
-      "delta_upper" = get_upper("gamma_i",model_output)
+      "gamma" = get_median("gamma_i",model_output),
+      "gamma_lower" = get_lower("gamma_i",model_output),
+      "gamma_upper" = get_upper("gamma_i",model_output)
     )
   } else {
     location_parameters <- data.frame(
       "study" = i_levels,
-      "delta" = 1,
-      "delta_lower" = 1,
-      "delta_upper" = 1
+      "gamma" = 1,
+      "gamma_lower" = 1,
+      "gamma_upper" = 1
     )
   }
   input_df %<>% dplyr::left_join(location_parameters, by = c("study"="study"))
@@ -705,7 +705,7 @@ plot_study_scale_factors <- function(model_output_df) {
     dplyr::ungroup()
 
   ggplot(model_output_df,
-         aes(x = study, y = delta, ymin = delta_lower, ymax = delta_upper)) +
+         aes(x = study, y = gamma, ymin = gamma_lower, ymax = gamma_upper)) +
     geom_point() +
     geom_errorbar() +
     ylab(paste0("Study scale factor")) +

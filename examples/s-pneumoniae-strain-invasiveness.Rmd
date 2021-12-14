@@ -378,7 +378,7 @@ This filtered dataset comprises `r nrow(filtered_S_pneumoniae_infant_strain)` is
 
 An adjusted type-specific Poisson model can be applied to the data using only classification by serotype (**adjusted serotype-specific Poisson** model):
 
-$$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{j}\rho_{i,j,k}N_{i}t_{i})$$
+$$d_{i,j,k} \sim Poisson(\gamma_{i}\nu_{j}\rho_{i,j,k}N_{i}t_{i})$$
 
 ``` {r Adjusted serotype-specific Poisson model fit, include = FALSE}
 
@@ -411,7 +411,7 @@ adjusted_serotype_specific_poisson_output_df <-
 
 We can alternatively fit a negative binomial version of the same model:
 
-$$d_{i,j,k} \sim NegBin(\delta_{i}\nu_{j}\rho_{i,j,k}N_{i}t_{i})$$
+$$d_{i,j,k} \sim NegBin(\gamma_{i}\nu_{j}\rho_{i,j,k}N_{i}t_{i})$$
 
 ``` {r Adjusted serotype-specific negative binomial model fit, include = FALSE}
 
@@ -438,7 +438,7 @@ adjusted_serotype_specific_negbin_output_df <-
 
 An adjusted type-specific Poisson model can alternatively be applied to the data using only classification by strain (**adjusted strain-specific Poisson** model):
 
-$$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
+$$d_{i,j,k} \sim Poisson(\gamma_{i}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
 
 ``` {r Adjusted strain-specific Poisson model fit, include = FALSE}
 
@@ -465,7 +465,7 @@ adjusted_strain_specific_poisson_output_df <-
 
 We can also fit a negative binomial equivalent (**adjusted strain-specific negative binomial** model):
 
-$$d_{i,j,k} \sim NegBin(\delta_{i}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
+$$d_{i,j,k} \sim NegBin(\gamma_{i}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
 ``` {r Adjusted strain-specific negative binomial model fit, include = FALSE}
 
 adjusted_strain_specific_negbin_fit <- 
@@ -491,7 +491,7 @@ adjusted_strain_specific_negbin_output_df <-
 
 Models can also combine serotype and strain information, with **invasiveness primarily determined by serotype, and modified by strain**:
 
-$$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
+$$d_{i,j,k} \sim Poisson(\gamma_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
 
 ``` {r Adjusted serotype-specific strain-modified Poisson model fit, include = FALSE}
 
@@ -519,7 +519,7 @@ adjusted_serotype_specific_strain_modified_poisson_output_df <-
 
 This can also be applied using a negative binomial distribution:
 
-$$d_{i,j,k} \sim NegBin(\delta_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
+$$d_{i,j,k} \sim NegBin(\gamma_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
 
 ``` {r Adjusted serotype-specific strain-modified negative binomial model fit, include = FALSE}
 
@@ -547,7 +547,7 @@ adjusted_serotype_specific_strain_modified_negbin_output_df <-
 
 Models can alternative have **invasiveness primarily determined by strain, and modified by serotype**:
 
-$$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
+$$d_{i,j,k} \sim Poisson(\gamma_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
 
 ``` {r Adjusted strain- and serotype-specific Poisson model fit, include = FALSE}
 
@@ -575,7 +575,7 @@ adjusted_strain_specific_serotype_modified_poisson_output_df <-
 
 This model can also be applied using a negative binomial model:
 
-$$d_{i,j,k} \sim NegBin(\delta_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
+$$d_{i,j,k} \sim NegBin(\gamma_{i}\nu_{k}\nu_{k}\rho_{i,j,k}N_{i}t_{i})$$
 
 ``` {r Adjusted strain- and serotype-specific negative binomial model fit, include = FALSE}
 
@@ -603,7 +603,7 @@ adjusted_strain_specific_serotype_modified_negbin_output_df <-
 
 The final model structure assigns a **different invasiveness to each strain-serotype combination**:
 
-$$d_{i,j,k} \sim Poisson(\delta_{i}\nu_{j,k}\rho_{i,j,k}N_{i}t_{i})$$
+$$d_{i,j,k} \sim Poisson(\gamma_{i}\nu_{j,k}\rho_{i,j,k}N_{i}t_{i})$$
 
 ``` {r Adjusted serotype- and strain-specific Poisson model fit, include = FALSE}
 
@@ -630,7 +630,7 @@ adjusted_strain_and_serotype_specific_poisson_output_df <-
 
 A version using the negative binomial distribution can also be fitted:
 
-$$d_{i,j,k} \sim NegBin(\delta_{i}\nu_{j,k}\rho_{i,j,k}N_{i}t_{i})$$
+$$d_{i,j,k} \sim NegBin(\gamma_{i}\nu_{j,k}\rho_{i,j,k}N_{i}t_{i})$$
 ``` {r Adjusted serotype- and strain-specific negative binomial model fit, include = FALSE}
 
 adjusted_strain_and_serotype_specific_negbin_fit <- 

@@ -303,9 +303,9 @@ type_specific_negbin_fit <-
 
 ```
 
-Alternatively, the Poisson model can be modified by allowing invasiveness to be adjusted between locations by a scale factor, $\delta_{i}$. In this model, all serotypes still have the same invasiveness (**adjusted Poisson** model):
+Alternatively, the Poisson model can be modified by allowing invasiveness to be adjusted between locations by a scale factor, $\gamma_{i}$. In this model, all serotypes still have the same invasiveness (**adjusted Poisson** model):
 
-$$d_{i,j} \sim Poisson(\delta_{i}\nu\rho_{i,j}N_{i}t_{i})$$
+$$d_{i,j} \sim Poisson(\gamma_{i}\nu\rho_{i,j}N_{i}t_{i})$$
 
 ``` {r Adjusted Poisson model fit, include = FALSE}
 
@@ -322,7 +322,7 @@ adjusted_poisson_fit <-
 
 The negative binomial model can again be modified in the same way (**adjusted negative binomial** model):
 
-$$d_{i,j} \sim NegBin(\delta_{i}\nu\rho_{i,j}N_{i}t_{i},\phi)$$
+$$d_{i,j} \sim NegBin(\gamma_{i}\nu\rho_{i,j}N_{i}t_{i},\phi)$$
 
 ``` {r Adjusted negative binomial model fit, include = FALSE}
 
@@ -340,7 +340,7 @@ adjusted_negbin_fit <-
 
 Both modifications can be combined in adjusted type-specific model fits. This can be used with the Poisson model of disease isolate counts (**adjusted type-specific Poisson** model):
 
-$$d_{i,j} \sim Poisson(\delta_{i}\nu_{j}\rho_{i,j}N_{i}t_{i})$$
+$$d_{i,j} \sim Poisson(\gamma_{i}\nu_{j}\rho_{i,j}N_{i}t_{i})$$
 
 ``` {r Adjusted type-specific Poisson model fit, include = FALSE}
 
@@ -357,7 +357,7 @@ adjusted_type_specific_poisson_fit <-
 
 This can also be used with the negative binomial model (**adjusted type-specific negative binomial** model):
 
-$$d_{i,j} \sim NegBin(\delta_{i}\nu_{j}\rho_{i,j}N_{i}t_{i},\phi)$$
+$$d_{i,j} \sim NegBin(\gamma_{i}\nu_{j}\rho_{i,j}N_{i}t_{i},\phi)$$
 
 ``` {r Adjusted type-specific negative binomial model fit, include = FALSE}
 

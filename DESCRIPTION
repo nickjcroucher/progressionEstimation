@@ -39,7 +39,8 @@ Suggests:
     knitr,
     rmarkdown,
     metafor (>= 3.0),
-    ggpubr (>= 0.4)
+    ggpubr (>= 0.4),
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr
 RoxygenNote: 7.1.1
 Biarch: true
@@ -51,3 +52,4 @@ LinkingTo:
     rstan (>= 2.18.1),
     StanHeaders (>= 2.18.0)
 SystemRequirements: GNU make
+Config/testthat/edition: 3

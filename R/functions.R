@@ -16,6 +16,10 @@ require(ggrepel)
 #' @return Data frame containing data extracted from spreadsheet
 #' @export
 #'
+#' @importFrom magrittr %>%
+#' @importFrom magrittr %<>%
+#' @importFrom stringr str_trim
+#'
 process_input_xlsx <- function(fn = "progression_estimation_input.xlsx", use_strain = FALSE) {
   max_col_num <- 7
   if (use_strain) {
@@ -63,6 +67,9 @@ combine_rows <- function(df, col_name = "type") {
 #'
 #' @return A list of lists used as an input to stan models
 #' @export
+#'
+#' @importFrom rlang :=
+#' @importFrom rlang !!
 #'
 process_input_data <- function(input_df, type = "type", use_strain = FALSE, combine_strain = FALSE, condense = FALSE) {
   if (!(type %in% colnames(input_df))) {
@@ -250,6 +257,8 @@ get_median<-function(parameter,model) {
 #' @return A data frame
 #' @export
 #'
+#' @importFrom stats setNames
+#'
 process_progression_rate_model_output<-function(model_output,
                                                 input_df,
                                                 type = "type",
@@ -397,6 +406,9 @@ process_progression_rate_model_output<-function(model_output,
 #' @return ggplot2 plot
 #' @export
 #'
+#' @importFrom ggplot geom_abline
+#' @importFrom ggplot geom_point
+#'
 plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_col = "type", legend = TRUE, just_legend = FALSE) {
 
   if (!("carriage_prediction" %in% colnames(model_output_df))) {
@@ -509,6 +521,17 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_co
 #'
 #' @return
 #' @export
+#'
+#' @importFrom ggplot element_text
+#' @importFrom ggplot ggplot
+#' @importFrom ggplot aes
+#' @importFrom ggplot geom_errorbar
+#' @importFrom ggplot scale_y_continuous
+#' @importFrom ggplot scale_shape_binned
+#' @importFrom ggplot theme
+#' @importFrom ggplot theme_bw
+#' @importFrom ggplot xlab
+#' @importFrom ggplot ylab
 #'
 plot_progression_rates <- function(model_output_df, type = "type", unit_time = "unit time", type_name = "type",
                                    colour_col = NULL, colour_palette = NULL, use_sample_size = FALSE) {
@@ -751,6 +774,8 @@ validate_progression_estimation_dataset <- function(df) {
 #'
 #' @return Data frame containing adjusted estimates of invasiveness for a study
 #' @export
+#'
+#' @importFrom stats quantile
 #'
 get_type_invasiveness_for_study <- function(df, fit, study = NULL, type = "type", use_strain_invasiveness = FALSE) {
 

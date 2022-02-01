@@ -680,7 +680,7 @@ combine_with_existing_datasets <- function(new_df, old_df) {
     new_df %>% dplyr::select(study) %>% dplyr::distinct() %>% dplyr::pull()
   old_studies <-
     old_df %>% dplyr::select(study) %>% dplyr::distinct() %>% dplyr::pull()
-  if (length(intersect(new_studies,old_studies)) < 1) {
+  if (length(intersect(new_studies,old_studies)) > 0) {
     stop("Names of studies in new data must not be present in old studies")
   }
   combined_df <- dplyr::bind_rows(old_df, new_df)

@@ -406,8 +406,8 @@ process_progression_rate_model_output<-function(model_output,
 #' @return ggplot2 plot
 #' @export
 #'
-#' @importFrom ggplot geom_abline
-#' @importFrom ggplot geom_point
+#' @importFrom ggplot2 geom_abline
+#' @importFrom ggplot2 geom_point
 #'
 plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_col = "type", legend = TRUE, just_legend = FALSE) {
 
@@ -522,16 +522,16 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_co
 #' @return
 #' @export
 #'
-#' @importFrom ggplot element_text
-#' @importFrom ggplot ggplot
-#' @importFrom ggplot aes
-#' @importFrom ggplot geom_errorbar
-#' @importFrom ggplot scale_y_continuous
-#' @importFrom ggplot scale_shape_binned
-#' @importFrom ggplot theme
-#' @importFrom ggplot theme_bw
-#' @importFrom ggplot xlab
-#' @importFrom ggplot ylab
+#' @importFrom ggplot2 element_text
+#' @importFrom ggplot2 ggplot
+#' @importFrom ggplot2 aes
+#' @importFrom ggplot2 geom_errorbar
+#' @importFrom ggplot2 scale_y_continuous
+#' @importFrom ggplot2 scale_shape_binned
+#' @importFrom ggplot2 theme
+#' @importFrom ggplot2 theme_bw
+#' @importFrom ggplot2 xlab
+#' @importFrom ggplot2 ylab
 #'
 plot_progression_rates <- function(model_output_df, type = "type", unit_time = "unit time", type_name = "type",
                                    colour_col = NULL, colour_palette = NULL, use_sample_size = FALSE) {

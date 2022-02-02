@@ -44,8 +44,8 @@ jobs:
 
       - uses: r-lib/actions/check-r-package@v1
         with:
-          args: 'c("--no-build-vignettes","--no-manual")'
-          build_args: 'c("--no-build-vignettes","--no-manual")'
+          args: 'c("--no-build-vignettes","--no-manual","--no-multiarch")'
+          build_args: 'c("--no-build-vignettes","--no-manual","--no-multiarch")'
           error-on: '"error"'
 
       - name: Show testthat output

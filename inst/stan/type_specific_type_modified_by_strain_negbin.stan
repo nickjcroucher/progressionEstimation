@@ -26,7 +26,7 @@ parameters {
   vector<lower=-6.0,upper=1.0>[j_max] log_nu_j;
 
   // log GPSC invasiveness ~ Cauchy
-  vector<lower=-3, upper=3>[k_max-1-1] log_nu_k;
+  vector<lower=-1.25, upper=1.25>[k_max] log_nu_k;
 
   // negative binomial overdispersions
   real<lower=0> phi_nb;
@@ -39,7 +39,7 @@ transformed parameters {
   vector<lower=0,upper=10.0>[j_max] nu_j;
   vector[k_max] nu_k;
   real mu_mod = 0; // position parameter of Cauchy for strain invasiveness
-  real tau_mod = 1; // scale parameter of Cauchy for strain invasiveness
+  real tau_mod = 0.5; // scale parameter of Cauchy for strain invasiveness
 
   // calculate serotype invasiveness on a real scale
   for (j in 1:j_max) {
@@ -49,7 +49,7 @@ transformed parameters {
   // calculate serotype invasiveness on a real scale
   nu_k[1] = 1;
   for (k in 2:k_max) {
-    nu_k[k] = pow(10, log_nu_k[k-1]);
+    nu_k[k] = pow(10, mu_mod + tau_mod * tan(log_nu_k[k]));
   }
 
 }

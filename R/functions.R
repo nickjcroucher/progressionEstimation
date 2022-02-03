@@ -16,6 +16,10 @@ require(ggrepel)
 #' @return Data frame containing data extracted from spreadsheet
 #' @export
 #'
+#' @importFrom magrittr %>%
+#' @importFrom magrittr %<>%
+#' @importFrom stringr str_trim
+#'
 process_input_xlsx <- function(fn = "progression_estimation_input.xlsx", use_strain = FALSE) {
   max_col_num <- 7
   if (use_strain) {
@@ -63,6 +67,9 @@ combine_rows <- function(df, col_name = "type") {
 #'
 #' @return A list of lists used as an input to stan models
 #' @export
+#'
+#' @importFrom rlang :=
+#' @importFrom rlang !!
 #'
 process_input_data <- function(input_df, type = "type", use_strain = FALSE, combine_strain = FALSE, condense = FALSE) {
   if (!(type %in% colnames(input_df))) {
@@ -222,19 +229,19 @@ fit_progression_rate_model<-function(input_data,
 }
 
 get_mean<-function(parameter,model) {
-  return(rstan::summary(model,pars=c(parameter))$summary[,1])
+  return(as.numeric(rstan::summary(model,pars=c(parameter))$summary[,1]))
 }
 
 get_upper<-function(parameter,model) {
-  return(rstan::summary(model,pars=c(parameter))$summary[,8])
+  return(as.numeric(rstan::summary(model,pars=c(parameter))$summary[,8]))
 }
 
 get_lower<-function(parameter,model) {
-  return(rstan::summary(model,pars=c(parameter))$summary[,4])
+  return(as.numeric(rstan::summary(model,pars=c(parameter))$summary[,4]))
 }
 
 get_median<-function(parameter,model) {
-  return(rstan::summary(model,pars=c(parameter))$summary[,6])
+  return(as.numeric(rstan::summary(model,pars=c(parameter))$summary[,6]))
 }
 
 #' Process the model output for downstream analysis
@@ -249,6 +256,8 @@ get_median<-function(parameter,model) {
 #'
 #' @return A data frame
 #' @export
+#'
+#' @importFrom stats setNames
 #'
 process_progression_rate_model_output<-function(model_output,
                                                 input_df,
@@ -344,9 +353,9 @@ process_progression_rate_model_output<-function(model_output,
   }
   progression_rates_df <- data.frame(
     "type" = j_levels,
-    "nu" = get_median(nu_name,model_output),
-    "nu_lower" = get_lower(nu_name,model_output),
-    "nu_upper" = get_upper(nu_name,model_output)
+    "nu" = as.numeric(get_median(nu_name,model_output)),
+    "nu_lower" = as.numeric(get_lower(nu_name,model_output)),
+    "nu_upper" = as.numeric(get_upper(nu_name,model_output))
   )
   input_df %<>% dplyr::left_join(progression_rates_df, by = setNames("type",type))
 
@@ -396,6 +405,9 @@ process_progression_rate_model_output<-function(model_output,
 #'
 #' @return ggplot2 plot
 #' @export
+#'
+#' @importFrom ggplot2 geom_abline
+#' @importFrom ggplot2 geom_point
 #'
 plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_col = "type", legend = TRUE, just_legend = FALSE) {
 
@@ -509,6 +521,17 @@ plot_case_carrier_predictions <- function(model_output_df, n_label = 3, label_co
 #'
 #' @return
 #' @export
+#'
+#' @importFrom ggplot2 element_text
+#' @importFrom ggplot2 ggplot
+#' @importFrom ggplot2 aes
+#' @importFrom ggplot2 geom_errorbar
+#' @importFrom ggplot2 scale_y_continuous
+#' @importFrom ggplot2 scale_shape_binned
+#' @importFrom ggplot2 theme
+#' @importFrom ggplot2 theme_bw
+#' @importFrom ggplot2 xlab
+#' @importFrom ggplot2 ylab
 #'
 plot_progression_rates <- function(model_output_df, type = "type", unit_time = "unit time", type_name = "type",
                                    colour_col = NULL, colour_palette = NULL, use_sample_size = FALSE) {
@@ -680,7 +703,7 @@ combine_with_existing_datasets <- function(new_df, old_df) {
     new_df %>% dplyr::select(study) %>% dplyr::distinct() %>% dplyr::pull()
   old_studies <-
     old_df %>% dplyr::select(study) %>% dplyr::distinct() %>% dplyr::pull()
-  if (length(intersect(new_studies,old_studies)) < 1) {
+  if (length(intersect(new_studies,old_studies)) > 0) {
     stop("Names of studies in new data must not be present in old studies")
   }
   combined_df <- dplyr::bind_rows(old_df, new_df)
@@ -751,6 +774,8 @@ validate_progression_estimation_dataset <- function(df) {
 #'
 #' @return Data frame containing adjusted estimates of invasiveness for a study
 #' @export
+#'
+#' @importFrom stats quantile
 #'
 get_type_invasiveness_for_study <- function(df, fit, study = NULL, type = "type", use_strain_invasiveness = FALSE) {
 

@@ -229,19 +229,19 @@ fit_progression_rate_model<-function(input_data,
 }
 
 get_mean<-function(parameter,model) {
-  return(rstan::summary(model,pars=c(parameter))$summary[,1])
+  return(as.numeric(rstan::summary(model,pars=c(parameter))$summary[,1]))
 }
 
 get_upper<-function(parameter,model) {
-  return(rstan::summary(model,pars=c(parameter))$summary[,8])
+  return(as.numeric(rstan::summary(model,pars=c(parameter))$summary[,8]))
 }
 
 get_lower<-function(parameter,model) {
-  return(rstan::summary(model,pars=c(parameter))$summary[,4])
+  return(as.numeric(rstan::summary(model,pars=c(parameter))$summary[,4]))
 }
 
 get_median<-function(parameter,model) {
-  return(rstan::summary(model,pars=c(parameter))$summary[,6])
+  return(as.numeric(rstan::summary(model,pars=c(parameter))$summary[,6]))
 }
 
 #' Process the model output for downstream analysis
@@ -353,9 +353,9 @@ process_progression_rate_model_output<-function(model_output,
   }
   progression_rates_df <- data.frame(
     "type" = j_levels,
-    "nu" = get_median(nu_name,model_output),
-    "nu_lower" = get_lower(nu_name,model_output),
-    "nu_upper" = get_upper(nu_name,model_output)
+    "nu" = as.numeric(get_median(nu_name,model_output)),
+    "nu_lower" = as.numeric(get_lower(nu_name,model_output)),
+    "nu_upper" = as.numeric(get_upper(nu_name,model_output))
   )
   input_df %<>% dplyr::left_join(progression_rates_df, by = setNames("type",type))
 

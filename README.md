@@ -9,7 +9,7 @@ Release: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5762037.svg)](https
 
 License: [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-brightgreen.svg)](https://github.com/nickjcroucher/progressionEstimation/blob/master/LICENSE)   
 
-Build: ![build](https://github.com/nickjcroucher/progressionEstimation/workflows/build/badge.svg)
+Build: ![build](https://github.com/nickjcroucher/progressionEstimation/workflows/build/check-standard.yaml/badge.svg)
   
 Code coverage: [![codecov](https://codecov.io/gh/nickjcroucher/progressionEstimation/branch/master/graph/badge.svg)](https://codecov.io/gh/nickjcroucher/progressionEstimation)
 

@@ -26,7 +26,7 @@ parameters {
   vector<lower=-6.0,upper=1.0>[j_max] log_nu_j;
 
   // log GPSC invasiveness ~ Cauchy
-  vector<lower=-3, upper=3>[k_max] log_nu_k;
+  vector<lower=-1.25, upper=1.25>[k_max] log_nu_k;
 
   // negative binomial overdispersions
   real<lower=0> phi_nb;

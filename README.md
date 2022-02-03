@@ -11,7 +11,7 @@ License: [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-brigh
 
 Build: ![build](https://github.com/nickjcroucher/progressionEstimation/workflows/build/check-standard.yaml/badge.svg)
   
-Code coverage: [![codecov](https://codecov.io/gh/nickjcroucher/progressionEstimation/branch/master/graph/badge.svg)](https://codecov.io/gh/nickjcroucher/progressionEstimation)
+Code coverage: [![codecov](https://codecov.io/gh/nickjcroucher/progressionEstimation/branch/main/graph/badge.svg?token=CZ63KCRN63)](https://codecov.io/gh/nickjcroucher/progressionEstimation)
 
 ## Quick start
 

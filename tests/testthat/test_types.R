@@ -9,6 +9,7 @@ make_test_df <- function() {
     S_pneumoniae_infant_serotype %>%
       dplyr::filter(type %in% c("19A","14")) %>%
       dplyr::filter(grepl("pre.PCV$",study)) %>%
+      dplyr::mutate(type = factor(type)) %>%
       dplyr::mutate(study = factor(study))
   return(test.df)
 }
@@ -136,6 +137,31 @@ testthat::test_that("Model comparison with Bayes factors",{
   testthat::expect_equal(model.comp[1,2],0)
 })
 
+# Test model comparisons with LOO-CV
+testthat::test_that("Model comparison with LOO-CV",{
+  test.df <- make_test_df()
+  test.in <- progressionEstimation::process_input_data(test.df)
+  null.out <- progressionEstimation::fit_progression_rate_model(
+    test.in,
+    type_specific = FALSE,
+    location_adjustment = FALSE,
+    stat_model = "poisson",
+    num_iter = 10000,
+    num_chains = 1
+  )
+  type.out <- progressionEstimation::fit_progression_rate_model(
+    test.in,
+    type_specific = TRUE,
+    location_adjustment = FALSE,
+    stat_model = "poisson",
+    num_iter = 10000,
+    num_chains = 1
+  )
+  model.comp <-
+    progressionEstimation::compare_model_fits_with_loo(list(null.out,type.out))
+  testthat::expect_equal(model.comp[1,2],0)
+})
+
 # Test processing of null model
 testthat::test_that("Null model can be processed",{
   test.df <- make_test_df()
@@ -174,7 +200,7 @@ testthat::test_that("Plotting of case and carrier predictions",{
 })
 
 # Test plotting of progression rates
-testthat::test_that("Plotting of case and carrier predictions",{
+testthat::test_that("Plotting of progression rates",{
   test.df <- make_test_df()
   test.in <- progressionEstimation::process_input_data(test.df)
   null.out <- progressionEstimation::fit_progression_rate_model(
@@ -189,6 +215,28 @@ testthat::test_that("Plotting of case and carrier predictions",{
     progressionEstimation::process_progression_rate_model_output(null.out,test.df)
   rates_plot <-
     progressionEstimation::plot_progression_rates(null.processed.out)
+  expect_error(print(rates_plot), NA)
+})
+
+# Test further plotting of progression rates
+testthat::test_that("Further plotting of progression rates",{
+  test.df <- make_test_df()
+  test.in <- progressionEstimation::process_input_data(test.df)
+  null.out <- progressionEstimation::fit_progression_rate_model(
+    test.in,
+    type_specific = FALSE,
+    location_adjustment = FALSE,
+    stat_model = "poisson",
+    num_iter = 10000,
+    num_chains = 1
+  )
+  null.processed.out <-
+    progressionEstimation::process_progression_rate_model_output(null.out,test.df)
+  rates_plot <-
+    progressionEstimation::plot_progression_rates(null.processed.out,
+                                                  use_sample_size = TRUE,
+                                                  colour_col = "study"
+                                                  )
   expect_error(print(rates_plot), NA)
 })
 
@@ -268,6 +316,30 @@ testthat::test_that("Location-adjusted model can be processed",{
   type_specific_location_adjusted_scale_factors_plot <-
     progressionEstimation::plot_study_scale_factors(type_specific_location_adjusted.processed.out)
   expect_error(print(type_specific_location_adjusted_scale_factors_plot), NA)
+})
+
+# Test processing and plotting of type-specific location-adjusted model
+testthat::test_that("Location-specific rates can be extracted",{
+  test.df <- make_test_df()
+  test.in <- progressionEstimation::process_input_data(test.df)
+  type_specific_location_adjusted.out <-
+    progressionEstimation::fit_progression_rate_model(
+      test.in,
+      type_specific = TRUE,
+      location_adjustment = TRUE,
+      stat_model = "negbin",
+      num_iter = 10000,
+      num_chains = 1
+    )
+  type_specific_location_adjusted.processed.out <-
+    progressionEstimation::process_progression_rate_model_output(type_specific_location_adjusted.out,test.df)
+  location_specific_output_df <-
+    progressionEstimation::get_type_invasiveness_for_study(
+      test.df,
+      type_specific_location_adjusted.out,
+      study = "E.W.pre.PCV"
+    )
+  testthat::expect_equal(nrow(location_specific_output_df),2)
 })
 
 # https://r-pkgs.org/tests.html

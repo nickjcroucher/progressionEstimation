@@ -40,6 +40,25 @@ testthat::test_that("Type-specific model can still be fitted",{
   testthat::expect_match(type_specific.out@model_name,"type_specific_poisson")
 })
 
+# Test simple model fit
+testthat::test_that("Type-specific model can still be fitted to condensed data",{
+  test.df <- make_test_df()
+  test.in <- progressionEstimation::process_input_data(test.df,
+                                                       condense = TRUE,
+                                                       use_strain = TRUE)
+  type_specific.out <- progressionEstimation::fit_progression_rate_model(
+    test.in,
+    type_specific = TRUE,
+    location_adjustment = FALSE,
+    strain_as_primary_type = FALSE,
+    strain_as_secondary_type = FALSE,
+    stat_model = "poisson",
+    num_iter = 10000,
+    num_chains = 1
+  )
+  testthat::expect_match(type_specific.out@model_name,"type_specific_poisson")
+})
+
 # Test simple model fit to strains
 testthat::test_that("Type-specific model can be fitted to strains",{
   test.df <- make_test_df()

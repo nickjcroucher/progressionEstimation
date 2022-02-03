@@ -3,11 +3,11 @@ R and stan package for the estimation of microbial progression rates
 
 This package uses Bayesian models implemented in stan to estimate the rates at which microbes progress from carriage to disease using case and carrier data.
 
- [![DOI:10.1101/2021.01.08.425840](http://img.shields.io/badge/DOI-10.1101/2021.09.01.458483-B31B1B.svg)](https://doi.org/10.1101/2021.09.01.458483)
- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5762037.svg)](https://doi.org/10.5281/zenodo.5762037)
+[![DOI:10.1101/2021.01.08.425840](http://img.shields.io/badge/DOI-10.1101/2021.09.01.458483-B31B1B.svg)](https://doi.org/10.1101/2021.09.01.458483)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5762037.svg)](https://doi.org/10.5281/zenodo.5762037)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-brightgreen.svg)](https://github.com/nickjcroucher/progressionEstimation/blob/master/LICENSE)   
 [![R-CMD-check](https://github.com/nickjcroucher/progressionEstimation/actions/workflows/check-standard.yaml/badge.svg)](https://github.com/nickjcroucher/progressionEstimation/actions/workflows/check-standard.yaml)  
- [![codecov](https://codecov.io/gh/nickjcroucher/progressionEstimation/branch/main/graph/badge.svg?token=CZ63KCRN63)](https://codecov.io/gh/nickjcroucher/progressionEstimation)
+[![codecov](https://codecov.io/gh/nickjcroucher/progressionEstimation/branch/main/graph/badge.svg?token=CZ63KCRN63)](https://codecov.io/gh/nickjcroucher/progressionEstimation)
 
 ## Quick start
 

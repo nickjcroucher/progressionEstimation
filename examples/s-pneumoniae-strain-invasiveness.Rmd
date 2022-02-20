@@ -776,14 +776,14 @@ ggsave(pred_v_obs_plot,
 
 ```
 
-The deviation of the predicted and observed values can be simply evaluated using the root mean square error:
+The deviation of the predicted and observed values can be simply evaluated using the distribution of absolute deviations:
 
-``` {r Calculate RMSE, fig.height = 10}
+``` {r Calculate absolute deviations}
 
 obs_pred_df <-
   dplyr::bind_rows(model_outputs) %>%
-  dplyr::select(model_name,carriage_rmse,disease_rmse,phi,phi_lower,phi_upper) %>%
-  tidyr::pivot_longer(c(carriage_rmse,disease_rmse), names_to = "Observation", values_to = "RMSE") %>%
+  dplyr::select(model_name,carriage_abs_dev,disease_abs_dev,phi,phi_lower,phi_upper) %>%
+  tidyr::pivot_longer(c(carriage_abs_dev,disease_abs_dev), names_to = "Observation", values_to = "Abs_dev") %>%
   dplyr::mutate(model_name = factor(model_name,
                                     levels = c(
                                       "serotype_specific_poisson",
@@ -800,13 +800,14 @@ obs_pred_df <-
                                     )
                 ) %>%
   dplyr::mutate(Observation = dplyr::case_when(
-                    Observation == "carriage_rmse" ~ "Carriage",
-                    Observation == "disease_rmse" ~ "Disease"
+                    Observation == "carriage_abs_dev" ~ "Carriage",
+                    Observation == "disease_abs_dev" ~ "Disease"
                   )
                 )
 
-(strain_and_serotype_rmse_plot <-
-  ggplot(obs_pred_df, aes(x = model_name, y = RMSE)) +
+(strain_and_serotype_abs_dev_plot <-
+  ggplot(obs_pred_df, aes(x = model_name, y = Abs_dev)) +
+    #geom_boxplot(outlier.shape = NA) +
     geom_point(position = position_jitter(width = 0.25),
                alpha = 0.25,
                cex = 0.75,
@@ -814,15 +815,15 @@ obs_pred_df <-
                pch = 4) +
     geom_violin(fill = NA) +
     scale_y_continuous(trans="log10") +
-    xlab("Model name") +
-    scale_x_discrete(labels = model_name_labels) +
     theme_bw() +
     facet_grid(Observation ~ .) +
+    scale_x_discrete(labels = model_name_labels) +
+    ylab("Absolute deviation") +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 )
 
-ggsave(strain_and_serotype_rmse_plot,
-       file = "strain_and_serotype_rmse_plot.png",
+ggsave(strain_and_serotype_abs_dev_plot,
+       file = "strain_and_serotype_abs_dev_plot.pdf",
        width = 7,
        height = 7
 )

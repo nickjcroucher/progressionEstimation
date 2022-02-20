@@ -387,10 +387,10 @@ process_progression_rate_model_output<-function(model_output,
     dplyr::mutate(disease_prediction_lower = get_lower("d_ij_pred",model_output)) %>%
     dplyr::mutate(disease_prediction_upper =  get_upper("d_ij_pred",model_output))
 
-  # Add in RMSE
+  # Add in absolute deviation
   input_df %<>%
-    dplyr::mutate(carriage_rmse = ((carriage - carriage_prediction)**2)**0.5) %>%
-    dplyr::mutate(disease_rmse = ((disease - disease_prediction)**2)**0.5)
+    dplyr::mutate(carriage_abs_dev = abs(carriage - carriage_prediction)) %>%
+    dplyr::mutate(disease_abs_dev = abs(disease - disease_prediction))
 
   return(input_df)
 }
